@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pictes Claudita — Control de Ganancias y Caja</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --navy:#1F2A44; --navy-dark:#141C30;
+    --blue:#4F86F7; --blue-dark:#3768D6;
+    --green:#2FA86A; --green-dark:#238255;
+    --orange:#F5A623; --orange-dark:#D6890A;
+    --purple:#9B59B6; --red:#E74C3C; --red-dark:#C0392B;
+    --bg:#F3F5F9; --surface:#FFFFFF; --border:#E4E8F0;
+    --text:#1F2937; --text-muted:#8792A2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-height:100%;}
+  body{font-family:'Segoe UI', Roboto, -apple-system, sans-serif;background:var(--bg);color:var(--text);}
+  #root{max-width:1280px;margin:0 auto;}
+
+  /* ---------- pantallas previas (setup / auth) ---------- */
+  .center-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .setup-card{background:#fff;border-radius:16px;padding:30px;max-width:480px;box-shadow:0 10px 30px rgba(0,0,0,.08);}
+  .setup-card h2{margin-top:0;color:var(--navy);}
+  .setup-card ol{padding-left:20px;font-size:13.5px;line-height:1.7;}
+  .setup-card code{background:var(--bg);padding:2px 6px;border-radius:5px;font-size:12px;}
+  .auth-card{background:#fff;border-radius:16px;padding:30px;width:100%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,.08);}
+  .auth-logo{text-align:center;font-size:36px;margin-bottom:6px;}
+  .auth-title{text-align:center;font-weight:800;color:var(--navy);font-size:19px;margin-bottom:2px;}
+  .auth-sub{text-align:center;font-size:12.5px;color:var(--text-muted);margin-bottom:20px;}
+  .auth-tabs{display:flex;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:18px;}
+  .auth-tab{flex:1;text-align:center;padding:8px;border:none;background:none;border-radius:8px;
+    font-weight:700;font-size:12.5px;color:var(--text-muted);cursor:pointer;}
+  .auth-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .auth-field label{font-size:12px;font-weight:700;color:var(--text-muted);}
+  .auth-field input{padding:10px 11px;border-radius:8px;border:1px solid var(--border);font-size:13.5px;}
+  .auth-msg{font-size:12px;padding:9px 11px;border-radius:8px;margin-bottom:12px;display:none;}
+  .auth-msg.show{display:block;}
+  .auth-msg.err{background:#FBE7E4;color:var(--red-dark);}
+  .auth-msg.ok{background:#E4F6EC;color:var(--green-dark);}
+
+  .navbar{background:linear-gradient(135deg,var(--navy),var(--navy-dark));color:#fff;
+    display:flex;align-items:center;justify-content:space-between;padding:12px 22px;flex-wrap:wrap;gap:10px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-icon{width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.15);
+    display:flex;align-items:center;justify-content:center;font-size:20px;}
+  .brand-title{font-weight:700;font-size:17px;line-height:1.1;}
+  .brand-sub{font-size:11px;color:rgba(255,255,255,.65);}
+  .nav-links{display:flex;gap:4px;flex-wrap:wrap;}
+  .nav-link{color:rgba(255,255,255,.75);background:none;border:none;cursor:pointer;
+    padding:9px 15px;border-radius:8px;font-size:13.5px;font-weight:600;
+    display:flex;align-items:center;gap:6px;transition:.15s;}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff;}
+  .nav-link.active{background:var(--blue);color:#fff;}
+  .caja-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);
+    padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:700;}
+  .caja-pill.neg{background:var(--red);}
+  .inv-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);
+    padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:600;}
+  .inv-pill.neg{background:var(--red);}
+  .pill-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .logout-btn{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:999px;
+    padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+
+  main{padding:20px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .hero-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:8px;}
+  .hero-tile{border-radius:14px;padding:18px;color:#fff;position:relative;overflow:hidden;}
+  .hero-tile.balance{background:linear-gradient(135deg,var(--navy),var(--blue-dark));}
+  .hero-tile.in{background:linear-gradient(135deg,var(--green),var(--green-dark));}
+  .hero-tile.out{background:linear-gradient(135deg,var(--red),var(--red-dark));}
+  .hero-label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;opacity:.85;}
+  .hero-value{font-size:24px;font-weight:800;margin-top:6px;}
+  .hero-sub{font-size:11px;opacity:.8;margin-top:4px;}
+
+  .section-label{font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;
+    letter-spacing:.4px;margin:18px 0 10px;}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:16px;}
+  .kpi-tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:16px;display:flex;align-items:center;gap:14px;}
+  .gauge{width:64px;height:64px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;position:relative;}
+  .gauge-inner{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .kpi-info{display:flex;flex-direction:column;gap:3px;}
+  .kpi-label{font-size:11.5px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+  .kpi-value{font-size:19px;font-weight:800;}
+  .kpi-delta{font-size:11.5px;font-weight:700;}
+  .kpi-delta.up{color:var(--green-dark);}
+  .kpi-delta.down{color:var(--red);}
+
+  .mini-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px;}
+  .mini-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:13px 16px;display:flex;align-items:center;gap:12px;}
+  .mini-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;color:#fff;flex:none;}
+  .mini-value{font-weight:800;font-size:15px;}
+  .mini-label{font-size:11px;color:var(--text-muted);}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card-title{font-weight:800;font-size:15px;margin-bottom:14px;color:var(--navy);}
+  .card-hint{font-size:11.5px;color:var(--text-muted);margin-top:-8px;margin-bottom:14px;}
+  .chart-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  @media(max-width:820px){.chart-grid{grid-template-columns:1fr;}}
+  .chart-wrap{position:relative;height:260px;}
+  .chart-wrap.small{height:230px;}
+
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:34px 16px;text-align:center;}
+  .empty-emoji{font-size:28px;}
+  .empty-title{font-weight:800;color:var(--navy);}
+  .empty-text{font-size:12.5px;color:var(--text-muted);max-width:320px;}
+
+  .form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .field{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--text-muted);flex:1;min-width:150px;}
+  .field.checkbox{flex-direction:row;align-items:center;gap:8px;}
+  input,select,button{font-family:inherit;}
+  input,select{padding:9px 10px;border-radius:8px;border:1px solid var(--border);font-size:13.5px;color:var(--text);background:#fff;}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--orange);outline-offset:1px;}
+
+  .ingred-header{display:flex;gap:8px;font-size:10.5px;font-weight:800;color:var(--text-muted);
+    text-transform:uppercase;letter-spacing:.3px;padding:0 2px 6px;}
+  .ingred-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .ingred-row input:nth-child(1){flex:2;}
+  .ingred-row input:nth-child(2){flex:1;}
+  .ingred-row select{flex:1;}
+  .ingred-row input:nth-child(4){flex:1;}
+  .icon-btn{background:none;border:none;cursor:pointer;padding:6px;display:flex;color:var(--red);}
+  .add-row-btn{display:flex;align-items:center;gap:6px;background:none;border:1px dashed var(--border);
+    border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--blue-dark);cursor:pointer;font-weight:700;}
+  .summary-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+  .summary-label{font-size:11px;color:var(--text-muted);font-weight:700;}
+  .summary-value{font-size:17px;font-weight:800;color:var(--navy);}
+  .btn-primary{margin-left:auto;background:var(--blue);color:#fff;border:none;border-radius:10px;
+    padding:11px 20px;font-weight:800;font-size:13px;cursor:pointer;}
+  .btn-primary-block{width:100%;background:var(--blue);color:#fff;border:none;border-radius:10px;
+    padding:12px;font-weight:800;font-size:13.5px;cursor:pointer;margin-top:10px;}
+  .btn-green{background:var(--green);color:#fff;border:none;border-radius:10px;padding:11px 18px;
+    font-weight:800;font-size:13px;cursor:pointer;}
+  .btn-red-out{background:var(--red);color:#fff;border:none;border-radius:10px;padding:11px 18px;
+    font-weight:800;font-size:13px;cursor:pointer;}
+  .btn-danger{background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 16px;
+    font-weight:800;font-size:12.5px;cursor:pointer;}
+  .btn-ghost{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 16px;
+    font-weight:700;font-size:12.5px;cursor:pointer;}
+
+  .detalle-toggle{margin-bottom:6px;}
+  .detalle-section{border-top:1px dashed var(--border);margin-top:10px;padding-top:14px;}
+  .detalle-check{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12.5px;font-weight:700;}
+  .detalle-check.ok{background:#E4F6EC;color:var(--green-dark);}
+  .detalle-check.bad{background:#FBE7E4;color:var(--red-dark);}
+
+  .tandazo-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#FAFBFD;margin-bottom:10px;}
+  .tandazo-top{display:flex;justify-content:space-between;align-items:center;}
+  .tandazo-date{font-weight:800;font-size:13px;}
+  .tandazo-stats{display:flex;gap:14px;font-size:12.5px;margin-top:6px;flex-wrap:wrap;}
+  .tandazo-ing{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .ing-tag{background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:3px 9px;font-size:10.5px;color:var(--text-muted);}
+
+  .pos-layout{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}
+  .pos-products{flex:1.4;min-width:280px;}
+  .pos-cart{flex:1;min-width:270px;}
+  .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+  .product-btn{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--bg);
+    border:1px solid var(--border);border-radius:12px;padding:16px 10px;cursor:pointer;}
+  .product-btn:hover{border-color:var(--blue);}
+  .product-emoji{font-size:24px;}
+  .product-name{font-weight:800;font-size:12px;text-align:center;}
+  .product-price{font-size:11.5px;color:var(--orange-dark);font-weight:800;}
+  .warn-banner{display:flex;align-items:center;gap:8px;background:#FDEDEB;border:1px solid var(--red);
+    border-radius:8px;padding:8px 10px;font-size:12px;color:var(--red);margin-top:12px;}
+  .cart-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .cart-name{font-size:13px;font-weight:700;}
+  .cart-sub{font-size:11px;color:var(--text-muted);}
+  .qty-ctl{display:flex;align-items:center;gap:6px;}
+  .qty-btn{width:22px;height:22px;border-radius:6px;border:1px solid var(--border);background:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .qty-num{font-size:12.5px;font-weight:800;min-width:16px;text-align:center;}
+  .cart-subtotal{font-size:12.5px;font-weight:800;min-width:60px;text-align:right;}
+  .total-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-weight:800;font-size:14px;}
+  .total-value{font-size:20px;color:var(--navy);}
+  .recent-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;
+    border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .recent-date{color:var(--text-muted);min-width:95px;}
+  .recent-items{flex:1;}
+  .recent-total{font-weight:800;}
+
+  .table-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .table-tab{padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:#fff;
+    color:var(--text);font-weight:700;font-size:12.5px;cursor:pointer;}
+  .table-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;}
+  th{text-align:left;padding:8px 10px;color:var(--text-muted);font-size:10.5px;
+    text-transform:uppercase;border-bottom:1px solid var(--border);}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);}
+  .totals-footer{margin-top:10px;font-size:13px;text-align:right;color:var(--navy);}
+  .table-wrap{overflow-x:auto;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:800;}
+  .badge.in{background:#E4F6EC;color:var(--green-dark);}
+  .badge.out{background:#FBE7E4;color:var(--red-dark);}
+  .amt-in{color:var(--green-dark);font-weight:800;}
+  .amt-out{color:var(--red-dark);font-weight:800;}
+
+  .caja-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:820px){.caja-grid{grid-template-columns:1fr;}}
+  .ajuste-result{margin-top:12px;padding:12px;border-radius:10px;background:var(--bg);font-size:13px;display:none;}
+  .ajuste-result.show{display:block;}
+  .ajuste-diff{font-weight:800;font-size:16px;}
+
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;
+    border:1.5px solid var(--green);border-radius:10px;padding:10px 16px;display:none;
+    align-items:center;gap:8px;font-size:13px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:999;}
+  #toast.show{display:flex;}
+  #toast.err{border-color:var(--red);}
+
+  .danger-card{border-color:var(--red)!important;}
+  .danger-card .card-title{color:var(--red);}
+  .danger-text{font-size:12.5px;color:var(--text-muted);margin-bottom:10px;}
+  .confirm-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;}
+
+  #loading{display:flex;align-items:center;justify-content:center;min-height:100vh;gap:10px;color:var(--navy);font-weight:800;}
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="loading">🌽 Cargando Pictes Claudita…</div>
+
+  <!-- Pantalla si faltan las llaves de Supabase -->
+  <div id="setupScreen" class="center-screen" style="display:none;">
+    <div class="setup-card">
+      <h2>🌽 Falta conectar tu base de datos</h2>
+      <p style="font-size:13.5px;color:var(--text-muted);">Este programa guarda todo en Supabase para que tus datos no se pierdan y los veas desde cualquier dispositivo. Antes de usarlo necesitas:</p>
+      <ol>
+        <li>Crear (o reutilizar) un proyecto en <code>supabase.com</code>.</li>
+        <li>Ejecutar el archivo <code>supabase_schema.sql</code> en el SQL Editor de tu proyecto.</li>
+        <li>Copiar tu <code>Project URL</code> y tu <code>anon public key</code> (Settings → API).</li>
+        <li>Abrir este archivo <code>index.html</code> y reemplazar <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code> al inicio del <code>&lt;script&gt;</code>.</li>
+      </ol>
+      <p style="font-size:12.5px;color:var(--text-muted);">Revisa <code>LEEME_DESPLIEGUE.md</code> para el paso a paso completo, incluyendo cómo subirlo a Vercel.</p>
+    </div>
+  </div>
+
+  <!-- Pantalla de acceso -->
+  <div id="authScreen" class="center-screen" style="display:none;">
+    <div class="auth-card">
+      <div class="auth-logo">🌽</div>
+      <div class="auth-title">Pictes Claudita</div>
+      <div class="auth-sub">Control de ganancias y caja</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin">Entrar</button>
+        <button class="auth-tab" id="tabRegister">Crear cuenta</button>
+      </div>
+      <div class="auth-msg" id="authMsg"></div>
+      <div class="auth-field"><label>Correo</label><input type="email" id="authEmail" placeholder="tucorreo@ejemplo.com" /></div>
+      <div class="auth-field"><label>Contraseña</label><input type="password" id="authPass" placeholder="••••••••" /></div>
+      <button class="btn-primary-block" id="btnAuthSubmit">Entrar</button>
+    </div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="navbar">
+      <div class="brand">
+        <div class="brand-icon">🌽</div>
+        <div>
+          <div class="brand-title" id="brandTitle">Pictes Claudita</div>
+          <div class="brand-sub">Control de producción, ventas y caja</div>
+        </div>
+      </div>
+      <div class="nav-links" id="navLinks"></div>
+      <div class="pill-group">
+        <div class="caja-pill" id="cajaPill">💵 $0.00 en caja</div>
+        <div class="inv-pill" id="invPill">📦 0 tamales</div>
+        <button class="logout-btn" id="btnLogout">Salir</button>
+      </div>
+    </div>
+
+    <main>
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="hero-row" id="heroRow"></div>
+        <div class="section-label">Ganancia (utilidad del negocio)</div>
+        <div class="kpi-row" id="kpiRow"></div>
+        <div class="mini-row" id="miniRow"></div>
+        <div id="dashboardCharts"></div>
+      </div>
+
+      <!-- PRODUCCION -->
+      <div class="view" id="view-produccion">
+        <div class="card">
+          <div class="card-title">Nuevo tandazo</div>
+          <div class="card-hint">Pon cuánto gastaste en total. Detallar en qué se fue el dinero es opcional.</div>
+          <div class="form-row">
+            <label class="field">Fecha<input type="date" id="pFecha" /></label>
+            <label class="field">Tamales producidos<input type="number" min="0" id="pTamales" placeholder="ej. 200" /></label>
+            <label class="field">Gasto total del tandazo ($)<input type="number" min="0" id="pGastoTotal" placeholder="0.00" /></label>
+          </div>
+
+          <div class="detalle-toggle">
+            <label class="field checkbox"><input type="checkbox" id="pDetallarToggle" style="width:auto;" /> Detallar en qué se compró (opcional)</label>
+          </div>
+
+          <div class="detalle-section" id="detalleSection" style="display:none;">
+            <div class="ingred-header">
+              <span style="flex:2">Qué se compró</span><span style="flex:1">Cantidad</span>
+              <span style="flex:1">Unidad</span><span style="flex:1">Gasto ($)</span><span style="width:28px"></span>
+            </div>
+            <div id="ingredRows"></div>
+            <button class="add-row-btn" id="btnAddIngred">+ Agregar compra</button>
+            <div class="detalle-check" id="detalleCheck"></div>
+          </div>
+
+          <div class="summary-bar">
+            <div><div class="summary-label">Costo total del tandazo</div><div class="summary-value" id="sumCostoTotal">$0.00</div></div>
+            <div><div class="summary-label">Costo por tamal</div><div class="summary-value" id="sumCostoTamal">$0.00</div></div>
+            <button class="btn-primary" id="btnGuardarTandazo">Guardar tandazo</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Tandazos recientes</div>
+          <div id="tandazoList"></div>
+        </div>
+      </div>
+
+      <!-- POS -->
+      <div class="view" id="view-pos">
+        <div class="pos-layout">
+          <div class="card pos-products">
+            <div class="card-title">Productos</div>
+            <div class="product-grid" id="productGrid"></div>
+            <div id="warnBanner"></div>
+          </div>
+          <div class="card pos-cart">
+            <div class="card-title">Carrito</div>
+            <div id="cartList"></div>
+            <label class="field">Método de pago
+              <select id="metodoPago"><option>Efectivo</option><option>Transferencia</option><option>Otro</option></select>
+            </label>
+            <div class="total-row"><span>Total</span><span class="total-value" id="cartTotal">$0.00</span></div>
+            <button class="btn-primary-block" id="btnCobrar">Cobrar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ventas recientes</div>
+          <div id="recentSales"></div>
+        </div>
+      </div>
+
+      <!-- CAJA -->
+      <div class="view" id="view-caja">
+        <div class="hero-row" id="cajaHero"></div>
+
+        <div class="caja-grid">
+          <div class="card">
+            <div class="card-title">💸 Registrar gasto</div>
+            <div class="card-hint">Gasolina, empaque, renta, sueldos, mantenimiento u otro gasto que no sea de un tandazo.</div>
+            <div class="form-row">
+              <label class="field">Fecha<input type="date" id="gFecha" /></label>
+              <label class="field">Categoría<select id="gCategoria"></select></label>
+            </div>
+            <div class="form-row">
+              <label class="field">Descripción<input id="gDescripcion" placeholder="ej. Gasolina para reparto" /></label>
+              <label class="field">Monto ($)<input type="number" id="gMonto" placeholder="0.00" /></label>
+            </div>
+            <label class="field">Método de pago
+              <select id="gMedioPago"><option>Efectivo</option><option>Transferencia</option><option>Otro</option></select>
+            </label>
+            <button class="btn-red-out" id="btnGuardarGasto" style="margin-top:12px;">Registrar gasto</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">💰 Registrar ingreso extra</div>
+            <div class="card-hint">Dinero que entra que no es venta de tamales: préstamo, aporte propio, cobro de deuda, etc.</div>
+            <div class="form-row">
+              <label class="field">Fecha<input type="date" id="iFecha" /></label>
+              <label class="field">Categoría<select id="iCategoria"></select></label>
+            </div>
+            <div class="form-row">
+              <label class="field">Descripción<input id="iDescripcion" placeholder="ej. Préstamo de mi hermano" /></label>
+              <label class="field">Monto ($)<input type="number" id="iMonto" placeholder="0.00" /></label>
+            </div>
+            <div class="form-row">
+              <label class="field checkbox"><input type="checkbox" id="iAfectaGanancia" style="width:auto;" /> Contar como ganancia del negocio</label>
+              <label class="field">Método de pago
+                <select id="iMedioPago"><option>Efectivo</option><option>Transferencia</option><option>Otro</option></select>
+              </label>
+            </div>
+            <button class="btn-green" id="btnGuardarIngreso" style="margin-top:12px;">Registrar ingreso</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🧮 Ajustar caja (arqueo)</div>
+          <div class="card-hint">Cuenta el efectivo que tienes en la mano ahora mismo y compáralo contra lo que el sistema calcula.</div>
+          <div class="form-row">
+            <label class="field">Tengo contado en caja ($)<input type="number" id="ajusteContado" placeholder="0.00" /></label>
+            <button class="btn-ghost" id="btnCalcularAjuste" style="align-self:flex-end;">Calcular diferencia</button>
+          </div>
+          <div class="ajuste-result" id="ajusteResult"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Movimientos recientes</div>
+          <div id="movimientosList"></div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="view" id="view-historial">
+        <div class="card">
+          <div class="table-tabs" id="histTabs">
+            <button class="table-tab active" data-tab="ventas">Ventas</button>
+            <button class="table-tab" data-tab="tandazos">Tandazos</button>
+            <button class="table-tab" data-tab="gastos">Gastos</button>
+            <button class="table-tab" data-tab="ingresos">Ingresos extra</button>
+          </div>
+          <div class="form-row">
+            <label class="field">Desde<input type="date" id="histDesde" /></label>
+            <label class="field">Hasta<input type="date" id="histHasta" /></label>
+          </div>
+          <div id="histContent"></div>
+        </div>
+      </div>
+
+      <!-- CONFIG -->
+      <div class="view" id="view-config">
+        <div class="card">
+          <div class="card-title">Negocio</div>
+          <label class="field">Nombre del negocio<input id="cfgNombre" /></label>
+        </div>
+        <div class="card">
+          <div class="card-title">Caja inicial</div>
+          <div class="card-hint">El efectivo con el que arrancas a usar el programa. A partir de aquí se suman ventas e ingresos y se restan costos y gastos.</div>
+          <div class="form-row">
+            <label class="field">Tengo actualmente en caja ($)<input type="number" id="cfgSaldoInicial" /></label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Productos en punto de venta</div>
+          <div id="cfgProductos"></div>
+          <button class="add-row-btn" id="btnAddProducto">+ Agregar producto</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Ingredientes frecuentes (autocompletar tandazo)</div>
+          <div id="cfgIngredientes"></div>
+          <button class="add-row-btn" id="btnAddIngComun">+ Agregar ingrediente</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Categorías de gastos</div>
+          <div id="cfgGastoCats"></div>
+          <button class="add-row-btn" id="btnAddGastoCat">+ Agregar categoría</button>
+        </div>
+        <button class="btn-primary" id="btnGuardarConfig" style="margin-bottom:16px;">Guardar configuración</button>
+        <div class="card danger-card">
+          <div class="card-title">Zona de riesgo</div>
+          <div class="danger-text">Esto borra permanentemente tandazos, ventas, gastos e ingresos guardados (no afecta la configuración).</div>
+          <div id="dangerZoneContent"><button class="btn-danger" id="btnResetStart">Borrar todos los datos</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   Pictes Claudita — Control de Ganancias y Caja
+   Persistencia: Supabase (nube). Listo para desplegar en Vercel.
+============================================================ */
+
+/* ---------- 1) CONFIGURA AQUÍ TU CONEXIÓN A SUPABASE ---------- */
+const SUPABASE_URL = "https://hxmlxvzwumrzvuhfvybv.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_wSCK895EgAcYvc62gF2Mkg_rsAppqj-";
+/* --------------------------------------------------------------- */
+
+const COLORS = {
+  navy:"#1F2A44", blue:"#4F86F7", blueDark:"#3768D6",
+  green:"#2FA86A", greenDark:"#238255", orange:"#F5A623",
+  orangeDark:"#D6890A", purple:"#9B59B6", red:"#E74C3C", redDark:"#C0392B",
+  border:"#E4E8F0", textMuted:"#8792A2"
+};
+const UNIDADES = ["cubeta","L","kg","g","pieza","puños","paquete","docena","tanque"];
+const INGRESO_CATEGORIAS = [
+  {nombre:"Préstamo recibido", afectaGanancia:false},
+  {nombre:"Aporte de capital propio", afectaGanancia:false},
+  {nombre:"Cobro de deuda / fiado", afectaGanancia:false},
+  {nombre:"Otro ingreso", afectaGanancia:true},
+];
+const DEFAULT_CONFIG = {
+  nombreNegocio: "Pictes Claudita",
+  saldoInicial: 0,
+  productos: [{id:"p1", nombre:"Tamal de Elote", precio:15}],
+  ingredientesComunes: [
+    {nombre:"Elote (cubeta)", unidad:"cubeta"}, {nombre:"Crema", unidad:"L"},
+    {nombre:"Manteca", unidad:"L"}, {nombre:"Leche", unidad:"L"},
+    {nombre:"Sal", unidad:"puños"}, {nombre:"Azúcar", unidad:"kg"},
+    {nombre:"Hojas de elote", unidad:"paquete"}, {nombre:"Gas", unidad:"tanque"},
+  ],
+  gastoCategorias: ["Transporte / Gasolina","Empaque y desechables","Renta del local",
+    "Servicios (luz, agua, gas)","Sueldos / Ayudantes","Mantenimiento de equipo","Insumos varios","Otro gasto"],
+};
+
+let state = { tandazos: [], ventas: [], gastos: [], ingresosExtra: [], config: structuredClone(DEFAULT_CONFIG) };
+let currentView = "dashboard";
+let currentHistTab = "ventas";
+let posCart = {};
+let ingredDraft = [];
+let charts = {};
+let sb = null;
+let currentUser = null;
+let authMode = "login";
+
+/* ---------------- helpers ---------------- */
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2,10)); }
+function toDateKey(d){ return new Date(d).toISOString().slice(0,10); }
+function todayKey(){ return toDateKey(new Date()); }
+function fmtMoney(n){ return (Number(n)||0).toLocaleString("es-MX",{style:"currency",currency:"MXN",minimumFractionDigits:2}); }
+function fmtNum(n,d=0){ return (Number(n)||0).toLocaleString("es-MX",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtDateShort(key){ const [y,m,d]=key.split("-"); return `${d}/${m}`; }
+function getWeekKey(dateObj){
+  const date=new Date(Date.UTC(dateObj.getFullYear(),dateObj.getMonth(),dateObj.getDate()));
+  const dayNum=(date.getUTCDay()+6)%7; date.setUTCDate(date.getUTCDate()-dayNum+3);
+  const firstThursday=new Date(Date.UTC(date.getUTCFullYear(),0,4));
+  const weekNum=1+Math.round(((date-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
+  return `${date.getUTCFullYear()}-S${String(weekNum).padStart(2,"0")}`;
+}
+function getMonthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function getYearKey(d){ return String(d.getFullYear()); }
+function monthLabel(key){
+  const [y,m]=key.split("-");
+  const meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  return `${meses[parseInt(m,10)-1]} ${y.slice(2)}`;
+}
+function escapeHtml(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function showToast(msg, kind="ok"){
+  const t = document.getElementById("toast");
+  t.textContent = (kind==="ok" ? "✅ " : "⚠️ ") + msg;
+  t.className = "show" + (kind==="ok" ? "" : " err");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>{ t.className=""; }, 2600);
+}
+
+/* ============================================================
+   Mapeo JS <-> Supabase (snake_case)
+============================================================ */
+function tandazoFromDb(r){ return {id:r.id, fecha:r.fecha, ingredientes:r.ingredientes||[], tamalesProducidos:Number(r.tamales_producidos), costoTotalProduccion:Number(r.costo_total_produccion), costoPorTamal:Number(r.costo_por_tamal)}; }
+function tandazoToDb(t){ return {id:t.id, user_id:currentUser.id, fecha:t.fecha, ingredientes:t.ingredientes, tamales_producidos:t.tamalesProducidos, costo_total_produccion:t.costoTotalProduccion, costo_por_tamal:t.costoPorTamal}; }
+function ventaFromDb(r){ return {id:r.id, fecha:r.fecha, items:r.items||[], total:Number(r.total), metodoPago:r.metodo_pago}; }
+function ventaToDb(v){ return {id:v.id, user_id:currentUser.id, fecha:v.fecha, items:v.items, total:v.total, metodo_pago:v.metodoPago}; }
+function gastoFromDb(r){ return {id:r.id, fecha:r.fecha, categoria:r.categoria, descripcion:r.descripcion, monto:Number(r.monto), medioPago:r.medio_pago}; }
+function gastoToDb(g){ return {id:g.id, user_id:currentUser.id, fecha:g.fecha, categoria:g.categoria, descripcion:g.descripcion, monto:g.monto, medio_pago:g.medioPago}; }
+function ingresoFromDb(r){ return {id:r.id, fecha:r.fecha, categoria:r.categoria, descripcion:r.descripcion, monto:Number(r.monto), medioPago:r.medio_pago, afectaGanancia:!!r.afecta_ganancia}; }
+function ingresoToDb(i){ return {id:i.id, user_id:currentUser.id, fecha:i.fecha, categoria:i.categoria, descripcion:i.descripcion, monto:i.monto, medio_pago:i.medioPago, afecta_ganancia:i.afectaGanancia}; }
+function configFromDb(r){ return {nombreNegocio:r.nombre_negocio, saldoInicial:Number(r.saldo_inicial), productos:r.productos||[], ingredientesComunes:r.ingredientes_comunes||[], gastoCategorias:r.gasto_categorias||[]}; }
+function configToDb(c){ return {user_id:currentUser.id, nombre_negocio:c.nombreNegocio, saldo_inicial:c.saldoInicial, productos:c.productos, ingredientes_comunes:c.ingredientesComunes, gasto_categorias:c.gastoCategorias}; }
+
+/* ============================================================
+   Arranque: setup -> auth -> app
+============================================================ */
+function supabaseConfigured(){
+  return SUPABASE_URL && SUPABASE_ANON_KEY &&
+    !SUPABASE_URL.includes("PON_AQUI") && !SUPABASE_ANON_KEY.includes("PON_AQUI");
+}
+async function boot(){
+  if(!supabaseConfigured()){
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("setupScreen").style.display = "flex";
+    return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  bindAuthEvents();
+  const { data:{ session } } = await sb.auth.getSession();
+  document.getElementById("loading").style.display = "none";
+  if(session){ currentUser = session.user; await startApp(); }
+  else{ document.getElementById("authScreen").style.display = "flex"; }
+
+  sb.auth.onAuthStateChange((event, session)=>{
+    if(event==="SIGNED_IN" && session && !currentUser){
+      currentUser = session.user;
+      document.getElementById("authScreen").style.display = "none";
+      startApp();
+    }
+  });
+}
+function bindAuthEvents(){
+  document.getElementById("tabLogin").addEventListener("click", ()=>setAuthMode("login"));
+  document.getElementById("tabRegister").addEventListener("click", ()=>setAuthMode("register"));
+  document.getElementById("btnAuthSubmit").addEventListener("click", handleAuthSubmit);
+  document.getElementById("btnLogout").addEventListener("click", async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+}
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById("tabLogin").classList.toggle("active", mode==="login");
+  document.getElementById("tabRegister").classList.toggle("active", mode==="register");
+  document.getElementById("btnAuthSubmit").textContent = mode==="login" ? "Entrar" : "Crear cuenta";
+  document.getElementById("authMsg").className = "auth-msg";
+}
+function showAuthMsg(msg, ok=false){
+  const el = document.getElementById("authMsg");
+  el.textContent = msg;
+  el.className = "auth-msg show " + (ok ? "ok" : "err");
+}
+async function handleAuthSubmit(){
+  const email = document.getElementById("authEmail").value.trim();
+  const pass = document.getElementById("authPass").value;
+  if(!email || !pass){ showAuthMsg("Escribe tu correo y contraseña."); return; }
+  if(authMode==="login"){
+    const {error} = await sb.auth.signInWithPassword({ email, password: pass });
+    if(error) showAuthMsg(error.message);
+  } else {
+    const {error} = await sb.auth.signUp({ email, password: pass });
+    if(error) showAuthMsg(error.message);
+    else showAuthMsg("Cuenta creada. Si tu proyecto pide confirmar correo, revisa tu bandeja y luego inicia sesión.", true);
+  }
+}
+
+async function startApp(){
+  await loadAllData();
+  document.getElementById("app").style.display = "block";
+  buildNav();
+  document.getElementById("pFecha").value = todayKey();
+  document.getElementById("gFecha").value = todayKey();
+  document.getElementById("iFecha").value = todayKey();
+  populateCategorySelects();
+  resetIngredDraft();
+  bindStaticEvents();
+  renderAll();
+}
+
+async function loadAllData(){
+  const [tr, vr, gr, ir, cr] = await Promise.all([
+    sb.from("tandazos").select("*").order("fecha", {ascending:false}),
+    sb.from("ventas").select("*").order("fecha", {ascending:false}),
+    sb.from("gastos").select("*").order("fecha", {ascending:false}),
+    sb.from("ingresos_extra").select("*").order("fecha", {ascending:false}),
+    sb.from("config").select("*").eq("user_id", currentUser.id).limit(1),
+  ]);
+  if(tr.error) showToast("Error cargando tandazos: "+tr.error.message, "err");
+  if(vr.error) showToast("Error cargando ventas: "+vr.error.message, "err");
+  if(gr.error) showToast("Error cargando gastos: "+gr.error.message, "err");
+  if(ir.error) showToast("Error cargando ingresos: "+ir.error.message, "err");
+
+  state.tandazos = (tr.data||[]).map(tandazoFromDb);
+  state.ventas = (vr.data||[]).map(ventaFromDb);
+  state.gastos = (gr.data||[]).map(gastoFromDb);
+  state.ingresosExtra = (ir.data||[]).map(ingresoFromDb);
+
+  if(cr.data && cr.data.length>0){
+    state.config = Object.assign(structuredClone(DEFAULT_CONFIG), configFromDb(cr.data[0]));
+  } else {
+    state.config = structuredClone(DEFAULT_CONFIG);
+    const {error} = await sb.from("config").insert(configToDb(state.config));
+    if(error) showToast("Error creando configuración inicial: "+error.message, "err");
+  }
+  if(!Array.isArray(state.config.gastoCategorias) || state.config.gastoCategorias.length===0){
+    state.config.gastoCategorias = structuredClone(DEFAULT_CONFIG.gastoCategorias);
+  }
+}
+
+function populateCategorySelects(){
+  document.getElementById("gCategoria").innerHTML = state.config.gastoCategorias
+    .map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  document.getElementById("iCategoria").innerHTML = INGRESO_CATEGORIAS
+    .map(c=>`<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`).join("");
+  document.getElementById("iCategoria").addEventListener("change", (e)=>{
+    const cat = INGRESO_CATEGORIAS.find(c=>c.nombre===e.target.value);
+    document.getElementById("iAfectaGanancia").checked = cat ? cat.afectaGanancia : false;
+  });
+  document.getElementById("iAfectaGanancia").checked = INGRESO_CATEGORIAS[0].afectaGanancia;
+}
+
+function buildNav(){
+  const items = [
+    {id:"dashboard", label:"Panel", icon:"🏠"},
+    {id:"produccion", label:"Tandazos", icon:"📦"},
+    {id:"pos", label:"Venta", icon:"🛒"},
+    {id:"caja", label:"Caja", icon:"💵"},
+    {id:"historial", label:"Historial", icon:"📜"},
+    {id:"config", label:"Ajustes", icon:"⚙️"},
+  ];
+  const nav = document.getElementById("navLinks");
+  nav.innerHTML = items.map(it=>`<button class="nav-link${it.id===currentView?" active":""}" data-view="${it.id}">${it.icon} ${it.label}</button>`).join("");
+  nav.querySelectorAll(".nav-link").forEach(btn=>{ btn.addEventListener("click", ()=>switchView(btn.dataset.view)); });
+}
+function switchView(v){
+  currentView = v;
+  document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
+  document.getElementById("view-"+v).classList.add("active");
+  renderAll();
+}
+function renderAll(){
+  renderTopPills();
+  if(currentView==="dashboard") renderDashboard();
+  if(currentView==="produccion") renderProduccionList();
+  if(currentView==="pos") renderPOS();
+  if(currentView==="caja") renderCaja();
+  if(currentView==="historial") renderHistorial();
+  if(currentView==="config") renderConfig();
+}
+
+/* ============================================================
+   Cálculos de caja e inventario
+============================================================ */
+function computeInventory(){
+  const producidos = state.tandazos.reduce((s,t)=>s+(Number(t.tamalesProducidos)||0),0);
+  let vendidos = 0;
+  state.ventas.forEach(v=> v.items.forEach(it=>{
+    if(it.producto.toLowerCase().includes("tamal")) vendidos += Number(it.cantidad)||0;
+  }));
+  return producidos - vendidos;
+}
+function computeCostoPromedio(){
+  const total = state.tandazos.reduce((s,t)=>s+(Number(t.costoTotalProduccion)||0),0);
+  const producidos = state.tandazos.reduce((s,t)=>s+(Number(t.tamalesProducidos)||0),0);
+  return producidos>0 ? total/producidos : 0;
+}
+function computeTotalIngresosCaja(){
+  const ventas = state.ventas.reduce((s,v)=>s+(Number(v.total)||0),0);
+  const extra = state.ingresosExtra.reduce((s,i)=>s+(Number(i.monto)||0),0);
+  return ventas + extra;
+}
+function computeTotalEgresosCaja(){
+  const tandazos = state.tandazos.reduce((s,t)=>s+(Number(t.costoTotalProduccion)||0),0);
+  const gastos = state.gastos.reduce((s,g)=>s+(Number(g.monto)||0),0);
+  return tandazos + gastos;
+}
+function computeSaldoCaja(){
+  return (Number(state.config.saldoInicial)||0) + computeTotalIngresosCaja() - computeTotalEgresosCaja();
+}
+function renderTopPills(){
+  const disp = computeInventory();
+  const invPill = document.getElementById("invPill");
+  invPill.textContent = `📦 ${fmtNum(disp)} tamales`;
+  invPill.classList.toggle("neg", disp<0);
+  const saldo = computeSaldoCaja();
+  const cajaPill = document.getElementById("cajaPill");
+  cajaPill.textContent = `💵 ${fmtMoney(saldo)} en caja`;
+  cajaPill.classList.toggle("neg", saldo<0);
+}
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+function sumByPeriod(keyFn, targetKey){
+  let ventasSum=0, costosSum=0, gastosSum=0, ingresosExtraSum=0;
+  state.ventas.forEach(v=>{ if(keyFn(new Date(v.fecha))===targetKey) ventasSum += Number(v.total||0); });
+  state.tandazos.forEach(t=>{ if(keyFn(new Date(t.fecha))===targetKey) costosSum += Number(t.costoTotalProduccion||0); });
+  state.gastos.forEach(g=>{ if(keyFn(new Date(g.fecha))===targetKey) gastosSum += Number(g.monto||0); });
+  state.ingresosExtra.forEach(i=>{ if(i.afectaGanancia && keyFn(new Date(i.fecha))===targetKey) ingresosExtraSum += Number(i.monto||0); });
+  const ganancia = ventasSum + ingresosExtraSum - costosSum - gastosSum;
+  return { ventasSum, costosSum, gastosSum, ingresosExtraSum, ganancia };
+}
+function sumFlujoByPeriod(keyFn, targetKey){
+  let entradas=0, salidas=0;
+  state.ventas.forEach(v=>{ if(keyFn(new Date(v.fecha))===targetKey) entradas += Number(v.total||0); });
+  state.ingresosExtra.forEach(i=>{ if(keyFn(new Date(i.fecha))===targetKey) entradas += Number(i.monto||0); });
+  state.tandazos.forEach(t=>{ if(keyFn(new Date(t.fecha))===targetKey) salidas += Number(t.costoTotalProduccion||0); });
+  state.gastos.forEach(g=>{ if(keyFn(new Date(g.fecha))===targetKey) salidas += Number(g.monto||0); });
+  return { entradas, salidas };
+}
+function gaugeHtml(pctRaw, color, label, value, deltaPct){
+  const pct = Math.max(5, Math.min(100, pctRaw));
+  const deltaClass = deltaPct>=0 ? "up" : "down";
+  const arrow = deltaPct>=0 ? "▲" : "▼";
+  const deltaTxt = isFinite(deltaPct) ? `${arrow} ${Math.abs(deltaPct).toFixed(0)}% vs. período anterior` : "Sin datos previos";
+  return `
+    <div class="kpi-tile">
+      <div class="gauge" style="background:conic-gradient(${color} ${pct}%, #E9ECF3 0)"><div class="gauge-inner">💰</div></div>
+      <div class="kpi-info">
+        <div class="kpi-label">${label}</div>
+        <div class="kpi-value" style="color:${value>=0?COLORS.navy:COLORS.red}">${fmtMoney(value)}</div>
+        <div class="kpi-delta ${deltaClass}">${deltaTxt}</div>
+      </div>
+    </div>`;
+}
+function pctChange(curr, prev){
+  if(prev===0) return curr===0 ? 0 : (curr>0?100:-100);
+  return ((curr-prev)/Math.abs(prev))*100;
+}
+function renderHeroRow(targetId){
+  const saldo = computeSaldoCaja();
+  const ingresos = computeTotalIngresosCaja();
+  const egresos = computeTotalEgresosCaja();
+  document.getElementById(targetId).innerHTML = `
+    <div class="hero-tile balance"><div class="hero-label">Saldo en caja (hoy)</div>
+      <div class="hero-value">${fmtMoney(saldo)}</div><div class="hero-sub">Caja inicial: ${fmtMoney(state.config.saldoInicial)}</div></div>
+    <div class="hero-tile in"><div class="hero-label">Total ingresos históricos</div>
+      <div class="hero-value">${fmtMoney(ingresos)}</div><div class="hero-sub">Ventas + ingresos extra</div></div>
+    <div class="hero-tile out"><div class="hero-label">Total egresos históricos</div>
+      <div class="hero-value">${fmtMoney(egresos)}</div><div class="hero-sub">Tandazos + gastos generales</div></div>
+  `;
+}
+function renderDashboard(){
+  renderHeroRow("heroRow");
+  const now = new Date();
+  const hoy = sumByPeriod(d=>toDateKey(d), todayKey());
+  const ayer = (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return sumByPeriod(d2=>toDateKey(d2), toDateKey(d)); })();
+  const semana = sumByPeriod(getWeekKey, getWeekKey(now));
+  const semanaPrev = (()=>{ const d=new Date(); d.setDate(d.getDate()-7); return sumByPeriod(getWeekKey, getWeekKey(d)); })();
+  const mes = sumByPeriod(getMonthKey, getMonthKey(now));
+  const mesPrev = (()=>{ const d=new Date(now); d.setMonth(d.getMonth()-1); return sumByPeriod(getMonthKey, getMonthKey(d)); })();
+  const anio = sumByPeriod(getYearKey, getYearKey(now));
+  const anioPrev = (()=>{ const d=new Date(now); d.setFullYear(d.getFullYear()-1); return sumByPeriod(getYearKey, getYearKey(d)); })();
+
+  const kpis = [
+    {label:"Ganancia hoy", value:hoy.ganancia, delta:pctChange(hoy.ganancia, ayer.ganancia), color:COLORS.blue},
+    {label:"Ganancia semana", value:semana.ganancia, delta:pctChange(semana.ganancia, semanaPrev.ganancia), color:COLORS.green},
+    {label:"Ganancia mes", value:mes.ganancia, delta:pctChange(mes.ganancia, mesPrev.ganancia), color:COLORS.orange},
+    {label:"Ganancia año", value:anio.ganancia, delta:pctChange(anio.ganancia, anioPrev.ganancia), color:COLORS.purple},
+  ];
+  document.getElementById("kpiRow").innerHTML = kpis.map(k=>{
+    const pct = 50 + Math.max(-45, Math.min(45, k.delta/2));
+    return gaugeHtml(pct, k.color, k.label, k.value, k.delta);
+  }).join("");
+
+  const disponibles = computeInventory();
+  const costoProm = computeCostoPromedio();
+  document.getElementById("miniRow").innerHTML = `
+    <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.orangeDark}">📊</div>
+      <div><div class="mini-value">${fmtMoney(costoProm)}</div><div class="mini-label">Costo promedio / tamal</div></div></div>
+    <div class="mini-stat"><div class="mini-icon" style="background:${disponibles<0?COLORS.red:COLORS.green}">🌽</div>
+      <div><div class="mini-value">${fmtNum(disponibles)}</div><div class="mini-label">Tamales disponibles</div></div></div>
+    <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.blueDark}">📦</div>
+      <div><div class="mini-value">${fmtNum(state.tandazos.length)}</div><div class="mini-label">Tandazos registrados</div></div></div>
+    <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.redDark}">💸</div>
+      <div><div class="mini-value">${fmtNum(state.gastos.length)}</div><div class="mini-label">Gastos generales registrados</div></div></div>
+  `;
+
+  const container = document.getElementById("dashboardCharts");
+  const sinDatos = state.tandazos.length===0 && state.ventas.length===0 && state.gastos.length===0 && state.ingresosExtra.length===0;
+  if(sinDatos){
+    container.innerHTML = `<div class="card"><div class="empty">
+      <div class="empty-emoji">🌽</div><div class="empty-title">Aún no hay datos</div>
+      <div class="empty-text">Registra tu primer tandazo, una venta, o un gasto para ver tus gráficas aquí.</div>
+    </div></div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-title">Entradas vs. salidas de dinero — últimos 14 días</div>
+      <div class="card-hint">Incluye ventas, ingresos extra, costos de tandazo y gastos generales.</div>
+      <div class="chart-wrap"><canvas id="chartBar14"></canvas></div>
+    </div>
+    <div class="chart-grid">
+      <div class="card"><div class="card-title">Ganancia mensual — últimos 12 meses</div>
+        <div class="chart-wrap small"><canvas id="chartLine12"></canvas></div></div>
+      <div class="card"><div class="card-title">Costos de producción por ingrediente</div>
+        <div class="chart-wrap small"><canvas id="chartPieIngredientes"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Gastos generales por categoría</div>
+      <div class="chart-wrap small"><canvas id="chartPieGastos"></canvas></div>
+    </div>
+  `;
+  renderCharts();
+}
+function renderCharts(){
+  const labels14=[], entradas14=[], salidas14=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i); const k=toDateKey(d);
+    const {entradas, salidas} = sumFlujoByPeriod(d2=>toDateKey(d2), k);
+    labels14.push(fmtDateShort(k)); entradas14.push(Math.round(entradas)); salidas14.push(Math.round(salidas));
+  }
+  if(charts.bar14) charts.bar14.destroy();
+  charts.bar14 = new Chart(document.getElementById("chartBar14"), {
+    type:"bar",
+    data:{ labels:labels14, datasets:[
+      {label:"Entradas", data:entradas14, backgroundColor:COLORS.green, borderRadius:4},
+      {label:"Salidas", data:salidas14, backgroundColor:COLORS.red, borderRadius:4},
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:"top", labels:{boxWidth:10,font:{size:11}}},
+        tooltip:{ callbacks:{ label:(ctx)=>` ${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } } },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ grid:{color:COLORS.border}, ticks:{ font:{size:10}, callback:(v)=>"$"+v } } }
+    }
+  });
+  const labels12=[], ganancia12=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(); d.setMonth(d.getMonth()-i);
+    const k=getMonthKey(d);
+    labels12.push(monthLabel(k));
+    ganancia12.push(Math.round(sumByPeriod(getMonthKey, k).ganancia));
+  }
+  if(charts.line12) charts.line12.destroy();
+  charts.line12 = new Chart(document.getElementById("chartLine12"), {
+    type:"line",
+    data:{ labels:labels12, datasets:[{label:"Ganancia", data:ganancia12,
+      borderColor:COLORS.orangeDark, backgroundColor:"rgba(245,166,35,.15)", fill:true, tension:.35, pointRadius:3 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=>` ${fmtMoney(ctx.parsed.y)}` } } },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ grid:{color:COLORS.border}, ticks:{ font:{size:10}, callback:(v)=>"$"+v } } }
+    }
+  });
+  renderPieInto("chartPieIngredientes", aggregate(state.tandazos.flatMap(t=>t.ingredientes||[]), "nombre", "costoTotal"),
+    "Aún no hay compras de tandazo detalladas.");
+  renderPieInto("chartPieGastos", aggregate(state.gastos, "categoria", "monto"),
+    "Aún no hay gastos generales registrados.");
+}
+function aggregate(arr, keyField, valField){
+  const map={};
+  arr.forEach(x=>{ map[x[keyField]] = (map[x[keyField]]||0) + (Number(x[valField])||0); });
+  return Object.entries(map).map(([name,value])=>({name, value:Math.round(value)})).sort((a,b)=>b.value-a.value).slice(0,8);
+}
+function renderPieInto(canvasId, entries, emptyMsg){
+  const canvasEl = document.getElementById(canvasId);
+  if(!canvasEl) return;
+  if(charts[canvasId]) { charts[canvasId].destroy(); charts[canvasId]=null; }
+  if(entries.length===0){
+    canvasEl.parentElement.innerHTML = `<div class="empty"><div class="empty-text">${emptyMsg}</div></div>`;
+    return;
+  }
+  const pieColors=[COLORS.orange,COLORS.green,COLORS.red,COLORS.blue,COLORS.purple,COLORS.orangeDark,COLORS.blueDark,COLORS.greenDark];
+  charts[canvasId] = new Chart(canvasEl, {
+    type:"doughnut",
+    data:{ labels: entries.map(e=>e.name), datasets:[{ data: entries.map(e=>e.value), backgroundColor: pieColors }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:"right", labels:{boxWidth:10,font:{size:10.5}}},
+        tooltip:{ callbacks:{ label:(ctx)=>` ${ctx.label}: ${fmtMoney(ctx.parsed)}` } } } }
+  });
+}
+
+/* ============================================================
+   PRODUCCION — gasto total flexible + detalle opcional
+============================================================ */
+function resetIngredDraft(){
+  ingredDraft = state.config.ingredientesComunes.map(i=>({id:uid(), nombre:i.nombre, unidad:i.unidad, cantidad:"", costoTotal:""}));
+  renderIngredRows();
+}
+function renderIngredRows(){
+  const wrap = document.getElementById("ingredRows");
+  wrap.innerHTML = ingredDraft.map(ing=>`
+    <div class="ingred-row" data-id="${ing.id}">
+      <input class="ing-nombre" placeholder="ej. Elote, Crema…" value="${escapeHtml(ing.nombre)}" />
+      <input class="ing-cantidad" type="number" placeholder="0" value="${escapeHtml(ing.cantidad)}" />
+      <select class="ing-unidad">${UNIDADES.map(u=>`<option value="${u}" ${u===ing.unidad?"selected":""}>${u}</option>`).join("")}</select>
+      <input class="ing-costo" type="number" placeholder="0.00" value="${escapeHtml(ing.costoTotal)}" />
+      <button class="icon-btn btn-remove-ing">🗑</button>
+    </div>`).join("");
+  wrap.querySelectorAll(".ingred-row").forEach(row=>{
+    const id = row.dataset.id;
+    const item = ingredDraft.find(i=>i.id===id);
+    row.querySelector(".ing-nombre").addEventListener("input", e=>{ item.nombre=e.target.value; });
+    row.querySelector(".ing-cantidad").addEventListener("input", e=>{ item.cantidad=e.target.value; });
+    row.querySelector(".ing-unidad").addEventListener("change", e=>{ item.unidad=e.target.value; });
+    row.querySelector(".ing-costo").addEventListener("input", e=>{ item.costoTotal=e.target.value; updateProduccionSummary(); });
+    row.querySelector(".btn-remove-ing").addEventListener("click", ()=>{ ingredDraft = ingredDraft.filter(i=>i.id!==id); renderIngredRows(); updateProduccionSummary(); });
+  });
+  updateProduccionSummary();
+}
+function detalleActivo(){ return document.getElementById("pDetallarToggle").checked; }
+function updateProduccionSummary(){
+  const gastoTotal = parseFloat(document.getElementById("pGastoTotal").value)||0;
+  const tamales = Number(document.getElementById("pTamales").value)||0;
+  document.getElementById("sumCostoTotal").textContent = fmtMoney(gastoTotal);
+  document.getElementById("sumCostoTamal").textContent = fmtMoney(tamales>0 ? gastoTotal/tamales : 0);
+
+  const check = document.getElementById("detalleCheck");
+  if(detalleActivo()){
+    const sumaDetalle = ingredDraft.reduce((s,i)=>s+(parseFloat(i.costoTotal)||0),0);
+    const diff = gastoTotal - sumaDetalle;
+    if(Math.abs(diff) < 0.01){
+      check.className = "detalle-check ok";
+      check.textContent = `✅ El detalle cuadra: ${fmtMoney(sumaDetalle)}`;
+    } else {
+      check.className = "detalle-check bad";
+      check.textContent = `⚠️ El detalle suma ${fmtMoney(sumaDetalle)}, pero el gasto total es ${fmtMoney(gastoTotal)} (diferencia de ${fmtMoney(Math.abs(diff))}). Ajusta hasta que coincidan.`;
+    }
+  } else {
+    check.className = "detalle-check";
+    check.textContent = "";
+  }
+}
+async function guardarTandazo(){
+  const tamales = Number(document.getElementById("pTamales").value);
+  const gastoTotal = parseFloat(document.getElementById("pGastoTotal").value);
+  if(!tamales || tamales<=0){ showToast("Indica cuántos tamales produjo este tandazo.","err"); return; }
+  if(!gastoTotal || gastoTotal<=0){ showToast("Indica el gasto total del tandazo.","err"); return; }
+
+  let ingredientesFinales = [];
+  if(detalleActivo()){
+    const validos = ingredDraft.filter(i=>i.nombre && (parseFloat(i.costoTotal)||0)>0);
+    const sumaDetalle = validos.reduce((s,i)=>s+(parseFloat(i.costoTotal)||0),0);
+    if(Math.abs(gastoTotal - sumaDetalle) >= 0.01){
+      showToast(`El detalle (${fmtMoney(sumaDetalle)}) no coincide con el gasto total (${fmtMoney(gastoTotal)}). Ajusta las cantidades.`, "err");
+      return;
+    }
+    ingredientesFinales = validos.map(i=>({ nombre:i.nombre, unidad:i.unidad, cantidad:parseFloat(i.cantidad)||0, costoTotal:parseFloat(i.costoTotal)||0 }));
+  }
+
+  const nuevo = {
+    id: uid(), fecha: document.getElementById("pFecha").value || todayKey(),
+    ingredientes: ingredientesFinales,
+    tamalesProducidos: tamales, costoTotalProduccion: gastoTotal, costoPorTamal: gastoTotal/tamales
+  };
+  const {error} = await sb.from("tandazos").insert(tandazoToDb(nuevo));
+  if(error){ showToast("Error guardando tandazo: "+error.message, "err"); return; }
+
+  state.tandazos = [nuevo, ...state.tandazos];
+  showToast(`Tandazo guardado — costo por tamal: ${fmtMoney(nuevo.costoPorTamal)}`);
+  document.getElementById("pFecha").value = todayKey();
+  document.getElementById("pTamales").value = "";
+  document.getElementById("pGastoTotal").value = "";
+  document.getElementById("pDetallarToggle").checked = false;
+  document.getElementById("detalleSection").style.display = "none";
+  resetIngredDraft();
+  renderTopPills();
+}
+function renderProduccionList(){
+  const wrap = document.getElementById("tandazoList");
+  if(state.tandazos.length===0){
+    wrap.innerHTML = `<div class="empty"><div class="empty-text">Todavía no registras ningún tandazo.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = state.tandazos.slice(0,12).map(t=>`
+    <div class="tandazo-card">
+      <div class="tandazo-top"><span class="tandazo-date">${t.fecha}</span>
+        <button class="icon-btn btn-del-tandazo" data-id="${t.id}">🗑</button></div>
+      <div class="tandazo-stats">
+        <span>🌽 ${fmtNum(t.tamalesProducidos)} tamales</span>
+        <span>💰 ${fmtMoney(t.costoTotalProduccion)}</span>
+        <span>📊 ${fmtMoney(t.costoPorTamal)} / tamal</span>
+      </div>
+      ${(t.ingredientes && t.ingredientes.length>0) ?
+        `<div class="tandazo-ing">${t.ingredientes.map(i=>`<span class="ing-tag">${escapeHtml(i.nombre)}: ${fmtMoney(i.costoTotal)}</span>`).join("")}</div>`
+        : `<div class="tandazo-ing"><span class="ing-tag">Sin detalle de compras</span></div>`}
+    </div>`).join("");
+  wrap.querySelectorAll(".btn-del-tandazo").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const {error} = await sb.from("tandazos").delete().eq("id", btn.dataset.id);
+      if(error){ showToast("Error eliminando: "+error.message, "err"); return; }
+      state.tandazos = state.tandazos.filter(t=>t.id!==btn.dataset.id);
+      renderProduccionList(); renderTopPills();
+      showToast("Tandazo eliminado");
+    });
+  });
+}
+
+/* ============================================================
+   PUNTO DE VENTA
+============================================================ */
+function renderPOS(){
+  const grid = document.getElementById("productGrid");
+  grid.innerHTML = state.config.productos.map(p=>`
+    <button class="product-btn" data-id="${p.id}">
+      <span class="product-emoji">🫔</span><span class="product-name">${escapeHtml(p.nombre)}</span>
+      <span class="product-price">${fmtMoney(p.precio)}</span>
+    </button>`).join("");
+  grid.querySelectorAll(".product-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const p = state.config.productos.find(pp=>pp.id===btn.dataset.id);
+      const cur = posCart[p.id] || {producto:p.nombre, precio:p.precio, cantidad:0};
+      cur.cantidad += 1; posCart[p.id]=cur;
+      renderCart();
+    });
+  });
+  renderCart();
+  renderRecentSales();
+}
+function renderCart(){
+  const items = Object.entries(posCart).map(([id,v])=>({id,...v}));
+  const wrap = document.getElementById("cartList");
+  if(items.length===0){
+    wrap.innerHTML = `<div class="empty"><div class="empty-text">Toca un producto para agregarlo.</div></div>`;
+  } else {
+    wrap.innerHTML = items.map(i=>`
+      <div class="cart-row" data-id="${i.id}">
+        <div style="flex:1"><div class="cart-name">${escapeHtml(i.producto)}</div><div class="cart-sub">${fmtMoney(i.precio)} c/u</div></div>
+        <div class="qty-ctl"><button class="qty-btn btn-minus">−</button><span class="qty-num">${i.cantidad}</span><button class="qty-btn btn-plus">+</button></div>
+        <div class="cart-subtotal">${fmtMoney(i.precio*i.cantidad)}</div>
+      </div>`).join("");
+    wrap.querySelectorAll(".cart-row").forEach(row=>{
+      const id = row.dataset.id;
+      row.querySelector(".btn-plus").addEventListener("click", ()=>{ posCart[id].cantidad+=1; renderCart(); });
+      row.querySelector(".btn-minus").addEventListener("click", ()=>{
+        posCart[id].cantidad-=1; if(posCart[id].cantidad<=0) delete posCart[id]; renderCart();
+      });
+    });
+  }
+  const total = items.reduce((s,i)=>s+i.precio*i.cantidad,0);
+  document.getElementById("cartTotal").textContent = fmtMoney(total);
+  const tamalesCarrito = items.reduce((s,i)=> i.producto.toLowerCase().includes("tamal") ? s+i.cantidad : s, 0);
+  const disponibles = computeInventory();
+  document.getElementById("warnBanner").innerHTML = tamalesCarrito>disponibles
+    ? `<div class="warn-banner">⚠️ Estás vendiendo más tamales (${fmtNum(tamalesCarrito)}) de los que hay disponibles (${fmtNum(disponibles)}).</div>` : "";
+}
+async function cobrar(){
+  const items = Object.entries(posCart).map(([id,v])=>({id,...v}));
+  if(items.length===0){ showToast("Agrega productos antes de cobrar.","err"); return; }
+  const total = items.reduce((s,i)=>s+i.precio*i.cantidad,0);
+  const nueva = {
+    id: uid(), fecha: new Date().toISOString(),
+    items: items.map(i=>({producto:i.producto, cantidad:i.cantidad, precioUnitario:i.precio, subtotal:i.precio*i.cantidad})),
+    total, metodoPago: document.getElementById("metodoPago").value
+  };
+  const {error} = await sb.from("ventas").insert(ventaToDb(nueva));
+  if(error){ showToast("Error registrando venta: "+error.message, "err"); return; }
+  state.ventas = [nueva, ...state.ventas];
+  posCart = {};
+  renderCart(); renderRecentSales(); renderTopPills();
+  showToast(`Venta registrada — ${fmtMoney(total)}`);
+}
+function renderRecentSales(){
+  const wrap = document.getElementById("recentSales");
+  const recientes = state.ventas.slice(0,8);
+  if(recientes.length===0){ wrap.innerHTML = `<div class="empty"><div class="empty-text">Aún no hay ventas registradas.</div></div>`; return; }
+  wrap.innerHTML = recientes.map(v=>`
+    <div class="recent-row">
+      <span class="recent-date">${new Date(v.fecha).toLocaleString("es-MX",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>
+      <span class="recent-items">${v.items.map(it=>`${it.cantidad}× ${escapeHtml(it.producto)}`).join(", ")}</span>
+      <span class="recent-total">${fmtMoney(v.total)}</span>
+    </div>`).join("");
+}
+
+/* ============================================================
+   CAJA
+============================================================ */
+function getAllMovimientos(){
+  const list = [];
+  state.ventas.forEach(v=> list.push({id:v.id, fecha:v.fecha, tipo:"ingreso", categoria:"Venta",
+    descripcion: v.items.map(it=>`${it.cantidad}× ${it.producto}`).join(", "), monto: v.total}));
+  state.tandazos.forEach(t=> list.push({id:t.id, fecha:t.fecha, tipo:"egreso", categoria:"Producción (tandazo)",
+    descripcion: `${t.tamalesProducidos} tamales producidos`, monto: t.costoTotalProduccion}));
+  state.gastos.forEach(g=> list.push({id:g.id, fecha:g.fecha, tipo:"egreso", categoria:g.categoria,
+    descripcion:g.descripcion||"", monto:g.monto}));
+  state.ingresosExtra.forEach(i=> list.push({id:i.id, fecha:i.fecha, tipo:"ingreso", categoria:i.categoria,
+    descripcion:i.descripcion||"", monto:i.monto}));
+  list.sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+  return list;
+}
+function renderCaja(){
+  renderHeroRow("cajaHero");
+  const wrap = document.getElementById("movimientosList");
+  const movs = getAllMovimientos().slice(0,20);
+  if(movs.length===0){
+    wrap.innerHTML = `<div class="empty"><div class="empty-text">Aún no hay movimientos registrados.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="table-wrap"><table><thead><tr>
+    <th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Detalle</th><th>Monto</th>
+  </tr></thead><tbody>
+    ${movs.map(m=>`
+      <tr><td>${new Date(m.fecha).toLocaleDateString("es-MX")}</td>
+      <td><span class="badge ${m.tipo==='ingreso'?'in':'out'}">${m.tipo==='ingreso'?'Entrada':'Salida'}</span></td>
+      <td>${escapeHtml(m.categoria)}</td><td>${escapeHtml(m.descripcion)}</td>
+      <td class="${m.tipo==='ingreso'?'amt-in':'amt-out'}">${m.tipo==='ingreso'?'+':'−'} ${fmtMoney(m.monto)}</td></tr>
+    `).join("")}
+  </tbody></table></div>`;
+}
+async function guardarGasto(){
+  const monto = parseFloat(document.getElementById("gMonto").value);
+  if(!monto || monto<=0){ showToast("Indica el monto del gasto.","err"); return; }
+  const nuevo = {
+    id: uid(), fecha: document.getElementById("gFecha").value || todayKey(),
+    categoria: document.getElementById("gCategoria").value,
+    descripcion: document.getElementById("gDescripcion").value,
+    monto, medioPago: document.getElementById("gMedioPago").value
+  };
+  const {error} = await sb.from("gastos").insert(gastoToDb(nuevo));
+  if(error){ showToast("Error guardando gasto: "+error.message, "err"); return; }
+  state.gastos = [nuevo, ...state.gastos];
+  document.getElementById("gDescripcion").value = "";
+  document.getElementById("gMonto").value = "";
+  document.getElementById("gFecha").value = todayKey();
+  renderTopPills(); renderCaja();
+  showToast(`Gasto registrado — ${fmtMoney(monto)}`);
+}
+async function guardarIngresoExtra(){
+  const monto = parseFloat(document.getElementById("iMonto").value);
+  if(!monto || monto<=0){ showToast("Indica el monto del ingreso.","err"); return; }
+  const nuevo = {
+    id: uid(), fecha: document.getElementById("iFecha").value || todayKey(),
+    categoria: document.getElementById("iCategoria").value,
+    descripcion: document.getElementById("iDescripcion").value,
+    monto, medioPago: document.getElementById("iMedioPago").value,
+    afectaGanancia: document.getElementById("iAfectaGanancia").checked
+  };
+  const {error} = await sb.from("ingresos_extra").insert(ingresoToDb(nuevo));
+  if(error){ showToast("Error guardando ingreso: "+error.message, "err"); return; }
+  state.ingresosExtra = [nuevo, ...state.ingresosExtra];
+  document.getElementById("iDescripcion").value = "";
+  document.getElementById("iMonto").value = "";
+  document.getElementById("iFecha").value = todayKey();
+  renderTopPills(); renderCaja();
+  showToast(`Ingreso registrado — ${fmtMoney(monto)}`);
+}
+function calcularAjuste(){
+  const contado = parseFloat(document.getElementById("ajusteContado").value);
+  if(isNaN(contado)){ showToast("Escribe cuánto tienes contado en caja.","err"); return; }
+  const calculado = computeSaldoCaja();
+  const diferencia = contado - calculado;
+  const el = document.getElementById("ajusteResult");
+  el.classList.add("show");
+  const diffColor = Math.abs(diferencia)<0.01 ? COLORS.greenDark : (diferencia>0 ? COLORS.greenDark : COLORS.redDark);
+  el.innerHTML = `
+    Saldo calculado por el sistema: <strong>${fmtMoney(calculado)}</strong><br/>
+    Tienes contado: <strong>${fmtMoney(contado)}</strong><br/>
+    Diferencia: <span class="ajuste-diff" style="color:${diffColor}">${diferencia>=0?"+":""}${fmtMoney(diferencia)}</span>
+    ${Math.abs(diferencia)<0.01 ? "<br/>✅ Tu caja cuadra perfecto." :
+      `<br/><button class="btn-primary" id="btnRegistrarAjuste" style="margin-left:0;margin-top:10px;">Registrar ajuste para cuadrar caja</button>`}
+  `;
+  const btn = document.getElementById("btnRegistrarAjuste");
+  if(btn){
+    btn.addEventListener("click", async ()=>{
+      if(diferencia>0){
+        const nuevo = { id:uid(), fecha:todayKey(), categoria:"Ajuste de caja",
+          descripcion:"Ajuste por arqueo de caja", monto:diferencia, medioPago:"Efectivo", afectaGanancia:false };
+        const {error} = await sb.from("ingresos_extra").insert(ingresoToDb(nuevo));
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.ingresosExtra = [nuevo, ...state.ingresosExtra];
+      } else {
+        const nuevo = { id:uid(), fecha:todayKey(), categoria:"Ajuste de caja",
+          descripcion:"Ajuste por arqueo de caja", monto:Math.abs(diferencia), medioPago:"Efectivo" };
+        const {error} = await sb.from("gastos").insert(gastoToDb(nuevo));
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.gastos = [nuevo, ...state.gastos];
+      }
+      document.getElementById("ajusteContado").value = "";
+      el.classList.remove("show");
+      renderTopPills(); renderCaja();
+      showToast("Caja ajustada correctamente.");
+    });
+  }
+}
+
+/* ============================================================
+   HISTORIAL
+============================================================ */
+function inRange(dateStr, desde, hasta){
+  const k = toDateKey(dateStr);
+  if(desde && k<desde) return false;
+  if(hasta && k>hasta) return false;
+  return true;
+}
+function renderHistorial(){
+  document.querySelectorAll("#histTabs .table-tab").forEach(b=>b.classList.toggle("active", b.dataset.tab===currentHistTab));
+  const desde = document.getElementById("histDesde").value;
+  const hasta = document.getElementById("histHasta").value;
+  const content = document.getElementById("histContent");
+
+  if(currentHistTab==="ventas"){
+    const filtradas = state.ventas.filter(v=>inRange(v.fecha, desde, hasta));
+    const totalVentas = filtradas.reduce((s,v)=>s+v.total,0);
+    content.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Productos</th><th>Pago</th><th>Total</th><th></th></tr></thead><tbody>
+      ${filtradas.length===0 ? `<tr><td colspan="5"><div class="empty"><div class="empty-text">Sin ventas en este rango.</div></div></td></tr>` :
+        filtradas.map(v=>`<tr><td>${new Date(v.fecha).toLocaleDateString("es-MX")}</td>
+          <td>${v.items.map(i=>`${i.cantidad}× ${escapeHtml(i.producto)}`).join(", ")}</td>
+          <td>${v.metodoPago}</td><td>${fmtMoney(v.total)}</td>
+          <td><button class="icon-btn btn-del-venta" data-id="${v.id}">🗑</button></td></tr>`).join("")}
+      </tbody></table></div><div class="totals-footer">Total ventas: <strong>${fmtMoney(totalVentas)}</strong></div>`;
+    content.querySelectorAll(".btn-del-venta").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const {error} = await sb.from("ventas").delete().eq("id", btn.dataset.id);
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.ventas = state.ventas.filter(v=>v.id!==btn.dataset.id);
+        renderHistorial(); renderTopPills();
+      });
+    });
+  } else if(currentHistTab==="tandazos"){
+    const filtrados = state.tandazos.filter(t=>inRange(t.fecha, desde, hasta));
+    const totalCostos = filtrados.reduce((s,t)=>s+t.costoTotalProduccion,0);
+    content.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tamales</th><th>Costo total</th><th>Costo/tamal</th><th></th></tr></thead><tbody>
+      ${filtrados.length===0 ? `<tr><td colspan="5"><div class="empty"><div class="empty-text">Sin tandazos en este rango.</div></div></td></tr>` :
+        filtrados.map(t=>`<tr><td>${t.fecha}</td><td>${fmtNum(t.tamalesProducidos)}</td>
+          <td>${fmtMoney(t.costoTotalProduccion)}</td><td>${fmtMoney(t.costoPorTamal)}</td>
+          <td><button class="icon-btn btn-del-tandazo-h" data-id="${t.id}">🗑</button></td></tr>`).join("")}
+      </tbody></table></div><div class="totals-footer">Total costos: <strong>${fmtMoney(totalCostos)}</strong></div>`;
+    content.querySelectorAll(".btn-del-tandazo-h").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const {error} = await sb.from("tandazos").delete().eq("id", btn.dataset.id);
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.tandazos = state.tandazos.filter(t=>t.id!==btn.dataset.id);
+        renderHistorial(); renderTopPills();
+      });
+    });
+  } else if(currentHistTab==="gastos"){
+    const filtrados = state.gastos.filter(g=>inRange(g.fecha, desde, hasta));
+    const totalGastos = filtrados.reduce((s,g)=>s+g.monto,0);
+    content.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Pago</th><th>Monto</th><th></th></tr></thead><tbody>
+      ${filtrados.length===0 ? `<tr><td colspan="6"><div class="empty"><div class="empty-text">Sin gastos en este rango.</div></div></td></tr>` :
+        filtrados.map(g=>`<tr><td>${g.fecha}</td><td>${escapeHtml(g.categoria)}</td><td>${escapeHtml(g.descripcion)}</td>
+          <td>${g.medioPago}</td><td class="amt-out">${fmtMoney(g.monto)}</td>
+          <td><button class="icon-btn btn-del-gasto" data-id="${g.id}">🗑</button></td></tr>`).join("")}
+      </tbody></table></div><div class="totals-footer">Total gastos: <strong>${fmtMoney(totalGastos)}</strong></div>`;
+    content.querySelectorAll(".btn-del-gasto").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const {error} = await sb.from("gastos").delete().eq("id", btn.dataset.id);
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.gastos = state.gastos.filter(g=>g.id!==btn.dataset.id);
+        renderHistorial(); renderTopPills();
+      });
+    });
+  } else {
+    const filtrados = state.ingresosExtra.filter(i=>inRange(i.fecha, desde, hasta));
+    const totalIngresos = filtrados.reduce((s,i)=>s+i.monto,0);
+    content.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>¿Cuenta como ganancia?</th><th>Monto</th><th></th></tr></thead><tbody>
+      ${filtrados.length===0 ? `<tr><td colspan="6"><div class="empty"><div class="empty-text">Sin ingresos extra en este rango.</div></div></td></tr>` :
+        filtrados.map(i=>`<tr><td>${i.fecha}</td><td>${escapeHtml(i.categoria)}</td><td>${escapeHtml(i.descripcion)}</td>
+          <td>${i.afectaGanancia ? "Sí" : "No"}</td><td class="amt-in">${fmtMoney(i.monto)}</td>
+          <td><button class="icon-btn btn-del-ingreso" data-id="${i.id}">🗑</button></td></tr>`).join("")}
+      </tbody></table></div><div class="totals-footer">Total ingresos extra: <strong>${fmtMoney(totalIngresos)}</strong></div>`;
+    content.querySelectorAll(".btn-del-ingreso").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const {error} = await sb.from("ingresos_extra").delete().eq("id", btn.dataset.id);
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.ingresosExtra = state.ingresosExtra.filter(i=>i.id!==btn.dataset.id);
+        renderHistorial(); renderTopPills();
+      });
+    });
+  }
+}
+
+/* ============================================================
+   CONFIGURACION
+============================================================ */
+let cfgDraft = null;
+function renderConfig(){
+  cfgDraft = structuredClone(state.config);
+  document.getElementById("cfgNombre").value = cfgDraft.nombreNegocio;
+  document.getElementById("cfgSaldoInicial").value = cfgDraft.saldoInicial;
+  renderCfgProductos();
+  renderCfgIngredientes();
+  renderCfgGastoCats();
+  document.getElementById("dangerZoneContent").innerHTML = `<button class="btn-danger" id="btnResetStart">Borrar todos los datos</button>`;
+  document.getElementById("btnResetStart").addEventListener("click", ()=>{
+    document.getElementById("dangerZoneContent").innerHTML = `
+      <div class="confirm-row"><span>¿Seguro? No se puede deshacer.</span>
+        <button class="btn-danger" id="btnResetConfirm">Sí, borrar todo</button>
+        <button class="btn-ghost" id="btnResetCancel">Cancelar</button></div>`;
+    document.getElementById("btnResetConfirm").addEventListener("click", async ()=>{
+      await Promise.all([
+        sb.from("tandazos").delete().eq("user_id", currentUser.id),
+        sb.from("ventas").delete().eq("user_id", currentUser.id),
+        sb.from("gastos").delete().eq("user_id", currentUser.id),
+        sb.from("ingresos_extra").delete().eq("user_id", currentUser.id),
+      ]);
+      showToast("Se borraron todos los movimientos.","err");
+      location.reload();
+    });
+    document.getElementById("btnResetCancel").addEventListener("click", renderConfig);
+  });
+}
+function renderCfgProductos(){
+  const wrap = document.getElementById("cfgProductos");
+  wrap.innerHTML = cfgDraft.productos.map(p=>`
+    <div class="ingred-row" data-id="${p.id}">
+      <input class="cfg-p-nombre" style="flex:2" placeholder="Nombre" value="${escapeHtml(p.nombre)}" />
+      <input class="cfg-p-precio" style="flex:1" type="number" placeholder="Precio" value="${p.precio}" />
+      <button class="icon-btn btn-del-producto">🗑</button>
+    </div>`).join("");
+  wrap.querySelectorAll(".ingred-row").forEach(row=>{
+    const id = row.dataset.id; const item = cfgDraft.productos.find(p=>p.id===id);
+    row.querySelector(".cfg-p-nombre").addEventListener("input", e=>{ item.nombre=e.target.value; });
+    row.querySelector(".cfg-p-precio").addEventListener("input", e=>{ item.precio=parseFloat(e.target.value)||0; });
+    row.querySelector(".btn-del-producto").addEventListener("click", ()=>{ cfgDraft.productos = cfgDraft.productos.filter(p=>p.id!==id); renderCfgProductos(); });
+  });
+}
+function renderCfgIngredientes(){
+  const wrap = document.getElementById("cfgIngredientes");
+  wrap.innerHTML = cfgDraft.ingredientesComunes.map((i,idx)=>`
+    <div class="ingred-row" data-idx="${idx}">
+      <input class="cfg-i-nombre" style="flex:2" placeholder="Ingrediente" value="${escapeHtml(i.nombre)}" />
+      <select class="cfg-i-unidad" style="flex:1">${UNIDADES.map(u=>`<option value="${u}" ${u===i.unidad?"selected":""}>${u}</option>`).join("")}</select>
+      <button class="icon-btn btn-del-ing">🗑</button>
+    </div>`).join("");
+  wrap.querySelectorAll(".ingred-row").forEach(row=>{
+    const idx = Number(row.dataset.idx);
+    row.querySelector(".cfg-i-nombre").addEventListener("input", e=>{ cfgDraft.ingredientesComunes[idx].nombre=e.target.value; });
+    row.querySelector(".cfg-i-unidad").addEventListener("change", e=>{ cfgDraft.ingredientesComunes[idx].unidad=e.target.value; });
+    row.querySelector(".btn-del-ing").addEventListener("click", ()=>{ cfgDraft.ingredientesComunes = cfgDraft.ingredientesComunes.filter((_,ix)=>ix!==idx); renderCfgIngredientes(); });
+  });
+}
+function renderCfgGastoCats(){
+  const wrap = document.getElementById("cfgGastoCats");
+  wrap.innerHTML = cfgDraft.gastoCategorias.map((c,idx)=>`
+    <div class="ingred-row" data-idx="${idx}">
+      <input class="cfg-g-cat" style="flex:3" placeholder="Categoría de gasto" value="${escapeHtml(c)}" />
+      <button class="icon-btn btn-del-gcat">🗑</button>
+    </div>`).join("");
+  wrap.querySelectorAll(".ingred-row").forEach(row=>{
+    const idx = Number(row.dataset.idx);
+    row.querySelector(".cfg-g-cat").addEventListener("input", e=>{ cfgDraft.gastoCategorias[idx]=e.target.value; });
+    row.querySelector(".btn-del-gcat").addEventListener("click", ()=>{ cfgDraft.gastoCategorias = cfgDraft.gastoCategorias.filter((_,ix)=>ix!==idx); renderCfgGastoCats(); });
+  });
+}
+async function guardarConfig(){
+  cfgDraft.nombreNegocio = document.getElementById("cfgNombre").value || "Pictes Claudita";
+  cfgDraft.saldoInicial = parseFloat(document.getElementById("cfgSaldoInicial").value) || 0;
+  const {error} = await sb.from("config").upsert(configToDb(cfgDraft), {onConflict:"user_id"});
+  if(error){ showToast("Error guardando configuración: "+error.message, "err"); return; }
+  state.config = cfgDraft;
+  document.getElementById("brandTitle").textContent = state.config.nombreNegocio;
+  populateCategorySelects();
+  renderTopPills();
+  showToast("Configuración guardada");
+}
+
+/* ============================================================
+   Eventos estáticos
+============================================================ */
+function bindStaticEvents(){
+  document.getElementById("btnAddIngred").addEventListener("click", ()=>{
+    ingredDraft.push({id:uid(), nombre:"", unidad:"kg", cantidad:"", costoTotal:""}); renderIngredRows();
+  });
+  document.getElementById("btnGuardarTandazo").addEventListener("click", guardarTandazo);
+  document.getElementById("pTamales").addEventListener("input", updateProduccionSummary);
+  document.getElementById("pGastoTotal").addEventListener("input", updateProduccionSummary);
+  document.getElementById("pDetallarToggle").addEventListener("change", (e)=>{
+    document.getElementById("detalleSection").style.display = e.target.checked ? "block" : "none";
+    updateProduccionSummary();
+  });
+
+  document.getElementById("btnCobrar").addEventListener("click", cobrar);
+  document.getElementById("btnGuardarGasto").addEventListener("click", guardarGasto);
+  document.getElementById("btnGuardarIngreso").addEventListener("click", guardarIngresoExtra);
+  document.getElementById("btnCalcularAjuste").addEventListener("click", calcularAjuste);
+
+  document.querySelectorAll("#histTabs .table-tab").forEach(btn=>{
+    btn.addEventListener("click", ()=>{ currentHistTab = btn.dataset.tab; renderHistorial(); });
+  });
+  document.getElementById("histDesde").addEventListener("change", renderHistorial);
+  document.getElementById("histHasta").addEventListener("change", renderHistorial);
+
+  document.getElementById("btnAddProducto").addEventListener("click", ()=>{ cfgDraft.productos.push({id:uid(), nombre:"", precio:0}); renderCfgProductos(); });
+  document.getElementById("btnAddIngComun").addEventListener("click", ()=>{ cfgDraft.ingredientesComunes.push({nombre:"", unidad:"kg"}); renderCfgIngredientes(); });
+  document.getElementById("btnAddGastoCat").addEventListener("click", ()=>{ cfgDraft.gastoCategorias.push(""); renderCfgGastoCats(); });
+  document.getElementById("btnGuardarConfig").addEventListener("click", guardarConfig);
+}
+
+boot();
+</script>
+</body>
+</html>
