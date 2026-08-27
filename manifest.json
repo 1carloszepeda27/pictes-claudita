@@ -1,0 +1,16 @@
+{
+  "name": "Pictes Claudita — Control de Ganancias y Caja",
+  "short_name": "Pictes Claudita",
+  "description": "Control de producción, ventas, caja y bodega para Pictes Claudita",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0E1420",
+  "theme_color": "#1F2A44",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
