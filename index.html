@@ -313,6 +313,40 @@
     .navbar{padding-top:max(12px, env(safe-area-inset-top));}
     body{padding-bottom:env(safe-area-inset-bottom);}
   }
+
+  /* ---------- ganancia clara + fiados ---------- */
+  .badge.warn{background:#FFF1D6;color:var(--orange-dark);}
+  .gc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .gc-eq{display:flex;flex-direction:column;}
+  .gc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--border);}
+  .gc-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-weight:700;font-size:14px;}
+  .gc-label small{flex-basis:100%;margin-left:26px;font-size:11.5px;font-weight:600;color:var(--text-muted);}
+  .gc-sign{display:inline-block;width:18px;text-align:center;font-weight:800;color:var(--text-muted);}
+  .gc-amt{font-weight:800;font-size:17px;white-space:nowrap;}
+  .gc-pos .gc-amt{color:var(--green-dark);}
+  .gc-neg .gc-amt{color:var(--red);}
+  .gc-total{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:16px;border-radius:12px;color:#fff;}
+  .gc-total.ok{background:linear-gradient(135deg,var(--green),var(--green-dark));}
+  .gc-total.bad{background:linear-gradient(135deg,var(--red),var(--red-dark));}
+  .gc-total .gc-label{font-size:16px;}
+  .gc-total .gc-sign{color:rgba(255,255,255,.8);}
+  .gc-total .gc-amt{font-size:30px;}
+  .gc-bar{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--border);margin-top:16px;}
+  .gc-bar span{display:block;height:100%;}
+  .gc-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--text-muted);font-weight:700;}
+  .gc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;}
+  .gc-warn{margin-top:14px;padding:10px 12px;border-radius:8px;background:#FBE7E4;color:var(--red-dark);font-size:12.5px;font-weight:700;}
+  .gc-fiado{margin-top:14px;padding:10px 12px;border-radius:8px;background:#FFF1D6;color:#8A5A00;font-size:12.5px;line-height:1.5;}
+  .gc-fiado a{color:inherit;font-weight:800;}
+  .fiado-box{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px;}
+  .cli-row{cursor:pointer;}
+  .cli-row:hover,.cli-row.sel{background:var(--bg);}
+  .cli-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .cli-saldo{text-align:right;font-size:24px;font-weight:800;}
+  .cli-saldo small{display:block;font-size:11px;font-weight:700;color:var(--text-muted);}
+  .cli-saldo.debe{color:var(--red);}
+  .cli-saldo.ok{color:var(--green-dark);}
+  .cli-actions{display:flex;gap:10px;flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -364,6 +398,7 @@
       <div class="pill-group">
         <div class="caja-pill" id="cajaPill">💵 $0.00 en caja</div>
         <div class="inv-pill" id="digitalPill">🏦 $0.00 digital</div>
+        <div class="inv-pill" id="fiadoPill" style="display:none;">🧾 $0.00 por cobrar</div>
         <div class="inv-pill" id="invPill">📦 0 tamales</div>
         <button class="logout-btn" id="btnInstalarApp" style="display:none;">📲 Instalar</button>
         <button class="logout-btn" id="btnThemeToggle" title="Cambiar tema">🌙</button>
@@ -374,6 +409,7 @@
     <main>
       <!-- DASHBOARD -->
       <div class="view active" id="view-dashboard">
+        <div id="gananciaClara"></div>
         <div class="hero-row" id="heroRow"></div>
         <div class="section-label">Ganancia (utilidad del negocio)</div>
         <div class="kpi-row" id="kpiRow"></div>
@@ -495,8 +531,17 @@
             <div class="card-title">Carrito</div>
             <div id="cartList"></div>
             <label class="field">Método de pago
-              <select id="metodoPago"><option>Efectivo</option><option>Transferencia</option><option>Otro</option></select>
+              <select id="metodoPago"><option>Efectivo</option><option>Transferencia</option><option>Otro</option><option value="Fiado">Fiado (a crédito)</option></select>
             </label>
+            <div id="fiadoBox" class="fiado-box" style="display:none;">
+              <label class="field">¿A quién se le fía?
+                <select id="posCliente"></select>
+              </label>
+              <label class="field" id="posClienteNuevoWrap" style="display:none;margin-top:8px;">Nombre del cliente nuevo
+                <input id="posClienteNuevo" placeholder="ej. Doña Rosa" />
+              </label>
+              <div class="card-hint" id="posClienteHint" style="margin:8px 0 0;"></div>
+            </div>
             <div class="total-row"><span>Total <span id="cartTamalesTotal" class="cart-tamales-total"></span></span><span class="total-value" id="cartTotal">$0.00</span></div>
             <button class="btn-primary-block" id="btnCobrar">Cobrar</button>
           </div>
@@ -505,6 +550,11 @@
           <div class="card-title">Ventas recientes</div>
           <div id="recentSales"></div>
         </div>
+      </div>
+
+      <!-- FIADOS / CLIENTES -->
+      <div class="view" id="view-clientes">
+        <div id="clientesContent"></div>
       </div>
 
       <!-- CAJA -->
@@ -531,7 +581,7 @@
 
           <div class="card">
             <div class="card-title">💰 Registrar ingreso extra</div>
-            <div class="card-hint">Dinero que entra que no es venta de tamales: préstamo, aporte propio, cobro de deuda, etc.</div>
+            <div class="card-hint">Dinero que entra que no es venta de tamales: préstamo, aporte propio, etc. (Los cobros a clientes que compraron fiado se registran en la pestaña Fiados.)</div>
             <div class="form-row">
               <label class="field">Fecha<input type="date" id="iFecha" /></label>
               <label class="field">Categoría<select id="iCategoria"></select></label>
@@ -602,6 +652,7 @@
             <button class="table-tab" data-tab="tandazos">Tandazos</button>
             <button class="table-tab" data-tab="gastos">Gastos</button>
             <button class="table-tab" data-tab="ingresos">Ingresos extra</button>
+            <button class="table-tab" data-tab="abonos">Cobros de fiado</button>
           </div>
           <div class="form-row">
             <label class="field">Desde<input type="date" id="histDesde" /></label>
@@ -740,6 +791,7 @@ const INGRESO_CATEGORIAS = [
   {nombre:"Cobro de deuda / fiado", afectaGanancia:false},
   {nombre:"Otro ingreso", afectaGanancia:true},
 ];
+function ingresoCats(){ return fiadoListo ? INGRESO_CATEGORIAS.filter(c=>c.nombre!=="Cobro de deuda / fiado") : INGRESO_CATEGORIAS; }
 const DEFAULT_CONFIG = {
   nombreNegocio: "Pictes Claudita",
   saldoInicial: 0,
@@ -755,7 +807,7 @@ const DEFAULT_CONFIG = {
     "Servicios (luz, agua, gas)","Sueldos / Ayudantes","Mantenimiento de equipo","Insumos varios","Otro gasto"],
 };
 
-let state = { tandazos: [], ventas: [], gastos: [], ingresosExtra: [], cortes: [], insumos: [], movimientosInsumos: [], config: structuredClone(DEFAULT_CONFIG) };
+let state = { tandazos: [], ventas: [], gastos: [], ingresosExtra: [], cortes: [], insumos: [], movimientosInsumos: [], clientes: [], abonos: [], config: structuredClone(DEFAULT_CONFIG) };
 let currentView = "dashboard";
 let currentHistTab = "ventas";
 let posCart = {};
@@ -764,6 +816,9 @@ let charts = {};
 let sb = null;
 let currentUser = null;
 let authMode = "login";
+let fiadoListo = false;     // true cuando las tablas clientes/abonos ya existen en Supabase
+let clienteSel = null;      // cliente abierto en la pantalla Fiados
+let periodoClaro = "hoy";   // periodo de la tarjeta "¿Cuánto estoy ganando?"
 
 /* ---------------- helpers ---------------- */
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2,10)); }
@@ -800,8 +855,8 @@ function showToast(msg, kind="ok"){
 ============================================================ */
 function tandazoFromDb(r){ return {id:r.id, fecha:r.fecha, ingredientes:r.ingredientes||[], tamalesProducidos:Number(r.tamales_producidos), costoTotalProduccion:Number(r.costo_total_produccion), costoPorTamal:Number(r.costo_por_tamal), medioPago:r.medio_pago||"Efectivo"}; }
 function tandazoToDb(t){ return {id:t.id, user_id:currentUser.id, fecha:t.fecha, ingredientes:t.ingredientes, tamales_producidos:t.tamalesProducidos, costo_total_produccion:t.costoTotalProduccion, costo_por_tamal:t.costoPorTamal, medio_pago:t.medioPago||"Efectivo"}; }
-function ventaFromDb(r){ return {id:r.id, fecha:r.fecha, items:r.items||[], total:Number(r.total), metodoPago:r.metodo_pago}; }
-function ventaToDb(v){ return {id:v.id, user_id:currentUser.id, fecha:v.fecha, items:v.items, total:v.total, metodo_pago:v.metodoPago}; }
+function ventaFromDb(r){ return {id:r.id, fecha:r.fecha, items:r.items||[], total:Number(r.total), metodoPago:r.metodo_pago, clienteId:r.cliente_id||null}; }
+function ventaToDb(v){ const o={id:v.id, user_id:currentUser.id, fecha:v.fecha, items:v.items, total:v.total, metodo_pago:v.metodoPago}; if(v.clienteId) o.cliente_id=v.clienteId; return o; }
 function gastoFromDb(r){ return {id:r.id, fecha:r.fecha, categoria:r.categoria, descripcion:r.descripcion, monto:Number(r.monto), medioPago:r.medio_pago}; }
 function gastoToDb(g){ return {id:g.id, user_id:currentUser.id, fecha:g.fecha, categoria:g.categoria, descripcion:g.descripcion, monto:g.monto, medio_pago:g.medioPago}; }
 function ingresoFromDb(r){ return {id:r.id, fecha:r.fecha, categoria:r.categoria, descripcion:r.descripcion, monto:Number(r.monto), medioPago:r.medio_pago, afectaGanancia:!!r.afecta_ganancia}; }
@@ -818,6 +873,11 @@ function movInsumoToDb(m){ return {id:m.id, user_id:currentUser.id, insumo_id:m.
 /* ============================================================
    Arranque: setup -> auth -> app
 ============================================================ */
+function clienteFromDb(r){ return {id:r.id, nombre:r.nombre, telefono:r.telefono||"", nota:r.nota||""}; }
+function clienteToDb(c){ return {id:c.id, user_id:currentUser.id, nombre:c.nombre, telefono:c.telefono||"", nota:c.nota||""}; }
+function abonoFromDb(r){ return {id:r.id, clienteId:r.cliente_id, fecha:r.fecha, monto:Number(r.monto), medioPago:r.medio_pago||"Efectivo", tipo:r.tipo||"abono", nota:r.nota||""}; }
+function abonoToDb(a){ return {id:a.id, user_id:currentUser.id, cliente_id:a.clienteId, fecha:a.fecha, monto:a.monto, medio_pago:a.medioPago, tipo:a.tipo, nota:a.nota||""}; }
+
 function supabaseConfigured(){
   return SUPABASE_URL && SUPABASE_ANON_KEY &&
     !SUPABASE_URL.includes("PON_AQUI") && !SUPABASE_ANON_KEY.includes("PON_AQUI");
@@ -955,11 +1015,12 @@ async function startApp(){
   populateInsumoSelects();
   resetIngredDraft();
   bindStaticEvents();
+  setupFiadoUI();
   renderAll();
 }
 
 async function loadAllData(){
-  const [tr, vr, gr, ir, cr, kr, iu, mi] = await Promise.all([
+  const [tr, vr, gr, ir, cr, kr, iu, mi, cl, ab] = await Promise.all([
     sb.from("tandazos").select("*").order("fecha", {ascending:false}),
     sb.from("ventas").select("*").order("fecha", {ascending:false}),
     sb.from("gastos").select("*").order("fecha", {ascending:false}),
@@ -968,6 +1029,8 @@ async function loadAllData(){
     sb.from("cortes").select("*").order("fecha_fin", {ascending:false}),
     sb.from("insumos").select("*").order("nombre", {ascending:true}),
     sb.from("movimientos_insumos").select("*").order("fecha", {ascending:true}),
+    sb.from("clientes").select("*").order("nombre", {ascending:true}),
+    sb.from("abonos").select("*").order("fecha", {ascending:false}),
   ]);
   if(tr.error) showToast("Error cargando tandazos: "+tr.error.message, "err");
   if(vr.error) showToast("Error cargando ventas: "+vr.error.message, "err");
@@ -984,6 +1047,9 @@ async function loadAllData(){
   state.cortes = (kr.data||[]).map(corteFromDb);
   state.insumos = (iu.data||[]).map(insumoFromDb);
   state.movimientosInsumos = (mi.data||[]).map(movInsumoFromDb);
+  fiadoListo = !cl.error && !ab.error;
+  state.clientes = fiadoListo ? (cl.data||[]).map(clienteFromDb) : [];
+  state.abonos = fiadoListo ? (ab.data||[]).map(abonoFromDb) : [];
 
   if(cr.data && cr.data.length>0){
     state.config = Object.assign(structuredClone(DEFAULT_CONFIG), configFromDb(cr.data[0]));
@@ -1007,13 +1073,13 @@ async function loadAllData(){
 function populateCategorySelects(){
   document.getElementById("gCategoria").innerHTML = state.config.gastoCategorias
     .map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
-  document.getElementById("iCategoria").innerHTML = INGRESO_CATEGORIAS
+  document.getElementById("iCategoria").innerHTML = ingresoCats()
     .map(c=>`<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`).join("");
   document.getElementById("iCategoria").addEventListener("change", (e)=>{
-    const cat = INGRESO_CATEGORIAS.find(c=>c.nombre===e.target.value);
+    const cat = ingresoCats().find(c=>c.nombre===e.target.value);
     document.getElementById("iAfectaGanancia").checked = cat ? cat.afectaGanancia : false;
   });
-  document.getElementById("iAfectaGanancia").checked = INGRESO_CATEGORIAS[0].afectaGanancia;
+  document.getElementById("iAfectaGanancia").checked = ingresoCats()[0].afectaGanancia;
 }
 
 function buildNav(){
@@ -1022,6 +1088,7 @@ function buildNav(){
     {id:"produccion", label:"Tandazos", icon:"📦"},
     {id:"bodega", label:"Bodega", icon:"🧺"},
     {id:"pos", label:"Venta", icon:"🛒"},
+    {id:"clientes", label:"Fiados", icon:"🤝"},
     {id:"caja", label:"Caja", icon:"💵"},
     {id:"ganancias", label:"Ganancias", icon:"📈"},
     {id:"historial", label:"Historial", icon:"📜"},
@@ -1045,6 +1112,7 @@ function renderAll(){
   if(currentView==="produccion") renderProduccionList();
   if(currentView==="bodega") renderBodega();
   if(currentView==="pos") renderPOS();
+  if(currentView==="clientes") renderClientes();
   if(currentView==="caja") renderCaja();
   if(currentView==="ganancias") renderGanancias();
   if(currentView==="historial") renderHistorial();
@@ -1075,9 +1143,11 @@ function computeCostoPromedio(){
   return producidos>0 ? total/producidos : 0;
 }
 function computeTotalIngresosCaja(){
-  const ventas = state.ventas.reduce((s,v)=>s+(Number(v.total)||0),0);
+  // Una venta a fiado NO entra a caja hasta que el cliente paga (abono).
+  const ventas = state.ventas.filter(v=>!esFiado(v)).reduce((s,v)=>s+(Number(v.total)||0),0);
   const extra = state.ingresosExtra.reduce((s,i)=>s+(Number(i.monto)||0),0);
-  return ventas + extra;
+  const abonos = abonosCobrados().reduce((s,a)=>s+(Number(a.monto)||0),0);
+  return ventas + extra + abonos;
 }
 function computeTotalEgresosCaja(){
   const tandazos = state.tandazos.reduce((s,t)=>s+(Number(t.costoTotalProduccion)||0),0);
@@ -1090,12 +1160,13 @@ function computeSaldoCaja(){
 function computeSaldoPorTipo(esEfectivo){
   const esEfectivoMetodo = m => (m||"Efectivo")==="Efectivo";
   const filtro = m => esEfectivo ? esEfectivoMetodo(m) : !esEfectivoMetodo(m);
-  const ventasSum = state.ventas.filter(v=>filtro(v.metodoPago)).reduce((s,v)=>s+(Number(v.total)||0),0);
+  const ventasSum = state.ventas.filter(v=>!esFiado(v) && filtro(v.metodoPago)).reduce((s,v)=>s+(Number(v.total)||0),0);
   const tandazosSum = state.tandazos.filter(t=>filtro(t.medioPago)).reduce((s,t)=>s+(Number(t.costoTotalProduccion)||0),0);
   const gastosSum = state.gastos.filter(g=>filtro(g.medioPago)).reduce((s,g)=>s+(Number(g.monto)||0),0);
   const ingresosSum = state.ingresosExtra.filter(i=>filtro(i.medioPago)).reduce((s,i)=>s+(Number(i.monto)||0),0);
   const base = esEfectivo ? (Number(state.config.saldoInicial)||0) : 0;
-  return base + ventasSum + ingresosSum - tandazosSum - gastosSum;
+  const abonosSum = abonosCobrados().filter(a=>filtro(a.medioPago)).reduce((s,a)=>s+(Number(a.monto)||0),0);
+  return base + ventasSum + ingresosSum + abonosSum - tandazosSum - gastosSum;
 }
 function computeSaldoEfectivo(){ return computeSaldoPorTipo(true); }
 function computeSaldoDigital(){ return computeSaldoPorTipo(false); }
@@ -1114,24 +1185,45 @@ function renderTopPills(){
     digitalPill.textContent = `🏦 ${fmtMoney(saldoDigital)} digital`;
     digitalPill.classList.toggle("neg", saldoDigital<0);
   }
+  const fiadoPill = document.getElementById("fiadoPill");
+  if(fiadoPill){
+    const pc = fiadoListo ? computePorCobrar() : 0;
+    fiadoPill.style.display = pc>0.004 ? "flex" : "none";
+    fiadoPill.textContent = `🧾 ${fmtMoney(pc)} por cobrar`;
+  }
 }
 
 /* ============================================================
    DASHBOARD
 ============================================================ */
 function sumByPeriod(keyFn, targetKey){
-  let ventasSum=0, costosSum=0, gastosSum=0, ingresosExtraSum=0;
-  state.ventas.forEach(v=>{ if(keyFn(new Date(v.fecha))===targetKey) ventasSum += Number(v.total||0); });
-  state.tandazos.forEach(t=>{ if(keyFn(new Date(t.fecha))===targetKey) costosSum += Number(t.costoTotalProduccion||0); });
+  // Ganancia = Ventas (todas, incluso a fiado) + otros ingresos del negocio
+  //            − costo de los tamales VENDIDOS − gastos − fiados perdidos
+  let ventasSum=0, ventasFiadoSum=0, tamalesVendidos=0, gastosSum=0, ingresosExtraSum=0, perdidasSum=0, abonosSum=0;
+  state.ventas.forEach(v=>{
+    if(keyFn(new Date(v.fecha))===targetKey){
+      const t = Number(v.total||0);
+      ventasSum += t;
+      if(esFiado(v)) ventasFiadoSum += t;
+      v.items.forEach(it=>{ tamalesVendidos += tamalesEnItem(it); });
+    }
+  });
   state.gastos.forEach(g=>{ if(keyFn(new Date(g.fecha))===targetKey) gastosSum += Number(g.monto||0); });
   state.ingresosExtra.forEach(i=>{ if(i.afectaGanancia && keyFn(new Date(i.fecha))===targetKey) ingresosExtraSum += Number(i.monto||0); });
-  const ganancia = ventasSum + ingresosExtraSum - costosSum - gastosSum;
-  return { ventasSum, costosSum, gastosSum, ingresosExtraSum, ganancia };
+  state.abonos.forEach(a=>{
+    if(keyFn(new Date(a.fecha))===targetKey){
+      if(a.tipo==="perdida") perdidasSum += Number(a.monto||0); else abonosSum += Number(a.monto||0);
+    }
+  });
+  const costosSum = tamalesVendidos * computeCostoPromedio();
+  const ganancia = ventasSum + ingresosExtraSum - costosSum - gastosSum - perdidasSum;
+  return { ventasSum, ventasFiadoSum, costosSum, gastosSum, ingresosExtraSum, perdidasSum, abonosSum, tamalesVendidos, ganancia };
 }
 function sumFlujoByPeriod(keyFn, targetKey){
   let entradas=0, salidas=0;
-  state.ventas.forEach(v=>{ if(keyFn(new Date(v.fecha))===targetKey) entradas += Number(v.total||0); });
+  state.ventas.forEach(v=>{ if(!esFiado(v) && keyFn(new Date(v.fecha))===targetKey) entradas += Number(v.total||0); });
   state.ingresosExtra.forEach(i=>{ if(keyFn(new Date(i.fecha))===targetKey) entradas += Number(i.monto||0); });
+  abonosCobrados().forEach(a=>{ if(keyFn(new Date(a.fecha))===targetKey) entradas += Number(a.monto||0); });
   state.tandazos.forEach(t=>{ if(keyFn(new Date(t.fecha))===targetKey) salidas += Number(t.costoTotalProduccion||0); });
   state.gastos.forEach(g=>{ if(keyFn(new Date(g.fecha))===targetKey) salidas += Number(g.monto||0); });
   return { entradas, salidas };
@@ -1161,6 +1253,9 @@ function renderHeroRow(targetId){
   const saldoTotal = saldoEfectivo + saldoDigital;
   const ingresos = computeTotalIngresosCaja();
   const egresos = computeTotalEgresosCaja();
+  const porCobrarHero = fiadoListo ? computePorCobrar() : 0;
+  const porCobrarTile = porCobrarHero>0.004 ? `<div class="hero-tile" style="background:linear-gradient(135deg,#F5A623,#D6890A);color:#fff;"><div class="hero-label">🧾 Por cobrar (fiados)</div>
+      <div class="hero-value">${fmtMoney(porCobrarHero)}</div><div class="hero-sub">Lo que te deben tus clientes — todavía no está en caja</div></div>` : "";
   document.getElementById(targetId).innerHTML = `
     <div class="hero-tile balance"><div class="hero-label">💵 Efectivo físico</div>
       <div class="hero-value">${fmtMoney(saldoEfectivo)}</div><div class="hero-sub">Lo que tienes en la mano — esto es lo que se compara en el arqueo</div></div>
@@ -1168,6 +1263,7 @@ function renderHeroRow(targetId){
       <div class="hero-value">${fmtMoney(saldoDigital)}</div><div class="hero-sub">Dinero que ya está en tu banco, no en tus manos</div></div>
     <div class="hero-tile" style="background:linear-gradient(135deg,#4B5563,#1F2937);color:#fff;"><div class="hero-label">💰 Total combinado</div>
       <div class="hero-value">${fmtMoney(saldoTotal)}</div><div class="hero-sub">Caja inicial: ${fmtMoney(state.config.saldoInicial)}</div></div>
+    ${porCobrarTile}
     <div class="hero-tile in"><div class="hero-label">Total ingresos históricos</div>
       <div class="hero-value">${fmtMoney(ingresos)}</div><div class="hero-sub">Ventas + ingresos extra</div></div>
     <div class="hero-tile out"><div class="hero-label">Total egresos históricos</div>
@@ -1175,6 +1271,7 @@ function renderHeroRow(targetId){
   `;
 }
 function renderDashboard(){
+  renderGananciaClara();
   renderHeroRow("heroRow");
   const now = new Date();
   const hoy = sumByPeriod(d=>toDateKey(d), todayKey());
@@ -1222,7 +1319,7 @@ function renderDashboard(){
   container.innerHTML = `
     <div class="card">
       <div class="card-title">Entradas vs. salidas de dinero — últimos 14 días</div>
-      <div class="card-hint">Incluye ventas, ingresos extra, costos de tandazo y gastos generales.</div>
+      <div class="card-hint">Dinero que realmente entró y salió de tu caja (una venta a fiado cuenta hasta que el cliente paga).</div>
       <div class="chart-wrap"><canvas id="chartBar14"></canvas></div>
     </div>
     <div class="chart-grid">
@@ -1758,6 +1855,7 @@ function renderPOS(){
   });
   renderCart();
   renderRecentSales();
+  refreshPosClientes();
 }
 function actualizarBadgesPOS(){
   document.querySelectorAll("#productGrid .product-btn").forEach(btn=>{
@@ -1815,17 +1913,43 @@ async function cobrar(){
   const items = Object.entries(posCart).map(([id,v])=>({id,...v}));
   if(items.length===0){ showToast("Agrega productos antes de cobrar.","err"); return; }
   const total = items.reduce((s,i)=>s+i.precio*i.cantidad,0);
+  const metodo = document.getElementById("metodoPago").value;
+  let clienteId = null;
+  if(metodo==="Fiado"){
+    const elegido = document.getElementById("posCliente").value;
+    if(!elegido){ showToast("Elige a quién se le fía.","err"); return; }
+    if(elegido==="__nuevo__"){
+      const nombre = document.getElementById("posClienteNuevo").value.trim();
+      if(!nombre){ showToast("Escribe el nombre del cliente nuevo.","err"); return; }
+      const existente = state.clientes.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase());
+      if(existente){ clienteId = existente.id; }
+      else {
+        const nuevoCli = {id:uid(), nombre, telefono:"", nota:""};
+        const {error:errCli} = await sb.from("clientes").insert(clienteToDb(nuevoCli));
+        if(errCli){ showToast("Error creando cliente: "+errCli.message, "err"); return; }
+        state.clientes = [...state.clientes, nuevoCli];
+        clienteId = nuevoCli.id;
+      }
+    } else { clienteId = elegido; }
+  }
   const nueva = {
     id: uid(), fecha: new Date().toISOString(),
     items: items.map(i=>({producto:i.producto, cantidad:i.cantidad, precioUnitario:i.precio, subtotal:i.precio*i.cantidad, tamalesPorUnidad:Number(i.tamalesPorUnidad)||0, esPack:!!i.esPack, precioModificado:!!i.precioModificado})),
-    total, metodoPago: document.getElementById("metodoPago").value
+    total, metodoPago: metodo, clienteId
   };
   const {error} = await sb.from("ventas").insert(ventaToDb(nueva));
   if(error){ showToast("Error registrando venta: "+error.message, "err"); return; }
   state.ventas = [nueva, ...state.ventas];
   posCart = {};
-  renderCart(); renderRecentSales(); renderTopPills();
-  showToast(`Venta registrada — ${fmtMoney(total)}`);
+  if(metodo==="Fiado"){
+    document.getElementById("metodoPago").value = "Efectivo";
+    document.getElementById("posCliente").value = "";
+    document.getElementById("posClienteNuevo").value = "";
+    toggleFiadoBox();
+  }
+  renderCart(); renderRecentSales(); renderTopPills(); refreshPosClientes();
+  if(metodo==="Fiado") showToast(`Fiado registrado — ${nombreCliente(clienteId)} debe ahora ${fmtMoney(clienteSaldo(clienteId))}`);
+  else showToast(`Venta registrada — ${fmtMoney(total)}`);
 }
 function renderRecentSales(){
   const wrap = document.getElementById("recentSales");
@@ -1835,7 +1959,7 @@ function renderRecentSales(){
     <div class="recent-row">
       <span class="recent-date">${new Date(v.fecha).toLocaleString("es-MX",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>
       <span class="recent-items">${v.items.map(it=>`${it.cantidad}× ${escapeHtml(it.producto)}${it.precioModificado?' <span class="cart-pack-badge" style="background:var(--orange-dark);">Precio ajustado</span>':''}`).join(", ")}</span>
-      <span class="recent-total">${fmtMoney(v.total)}</span>
+      ${esFiado(v)?`<span class="badge warn">Fiado · ${escapeHtml(nombreCliente(v.clienteId))}</span> `:""}<span class="recent-total">${fmtMoney(v.total)}</span>
     </div>`).join("");
 }
 
@@ -1844,8 +1968,10 @@ function renderRecentSales(){
 ============================================================ */
 function getAllMovimientos(){
   const list = [];
-  state.ventas.forEach(v=> list.push({id:v.id, fecha:v.fecha, tipo:"ingreso", categoria:"Venta",
+  state.ventas.filter(v=>!esFiado(v)).forEach(v=> list.push({id:v.id, fecha:v.fecha, tipo:"ingreso", categoria:"Venta",
     descripcion: v.items.map(it=>`${it.cantidad}× ${it.producto}`).join(", "), monto: v.total}));
+  abonosCobrados().forEach(a=> list.push({id:a.id, fecha:a.fecha, tipo:"ingreso", categoria:"Cobro de fiado",
+    descripcion: nombreCliente(a.clienteId), monto: a.monto}));
   state.tandazos.forEach(t=> list.push({id:t.id, fecha:t.fecha, tipo:"egreso", categoria:"Producción (tandazo)",
     descripcion: `${t.tamalesProducidos} tamales producidos`, monto: t.costoTotalProduccion}));
   state.gastos.forEach(g=> list.push({id:g.id, fecha:g.fecha, tipo:"egreso", categoria:g.categoria,
@@ -2058,7 +2184,7 @@ function renderGananciaMensual(){
     labels.push(monthLabel(k));
     ganancias.push(Math.round(p.ganancia));
     ingresos.push(Math.round(p.ventasSum + p.ingresosExtraSum));
-    costos.push(Math.round(p.costosSum + p.gastosSum));
+    costos.push(Math.round(p.costosSum + p.gastosSum + p.perdidasSum));
   }
   const canvasEl = document.getElementById("chartMensual");
   if(charts.mensual) charts.mensual.destroy();
@@ -2134,9 +2260,17 @@ function getCorteRange(){
   return {desde, hasta, tipo, label: desde && hasta ? `${desde} a ${hasta}` : "Personalizado"};
 }
 function computeRangeTotals(desde, hasta){
-  let ventasSum=0, costosSum=0, gastosSum=0, ingresosAfectanSum=0, ingresosTotalSum=0;
-  state.ventas.forEach(v=>{ const k=toDateKey(v.fecha); if(k>=desde && k<=hasta) ventasSum += Number(v.total||0); });
-  state.tandazos.forEach(t=>{ const k=toDateKey(t.fecha); if(k>=desde && k<=hasta) costosSum += Number(t.costoTotalProduccion||0); });
+  let ventasSum=0, ventasFiadoSum=0, tamalesVendidos=0, costosProdSum=0, gastosSum=0, ingresosAfectanSum=0, ingresosTotalSum=0, abonosSum=0, perdidasSum=0;
+  state.ventas.forEach(v=>{
+    const k=toDateKey(v.fecha);
+    if(k>=desde && k<=hasta){
+      const t = Number(v.total||0);
+      ventasSum += t;
+      if(esFiado(v)) ventasFiadoSum += t;
+      v.items.forEach(it=>{ tamalesVendidos += tamalesEnItem(it); });
+    }
+  });
+  state.tandazos.forEach(t=>{ const k=toDateKey(t.fecha); if(k>=desde && k<=hasta) costosProdSum += Number(t.costoTotalProduccion||0); });
   state.gastos.forEach(g=>{ const k=toDateKey(g.fecha); if(k>=desde && k<=hasta) gastosSum += Number(g.monto||0); });
   state.ingresosExtra.forEach(i=>{
     const k=toDateKey(i.fecha);
@@ -2145,9 +2279,17 @@ function computeRangeTotals(desde, hasta){
       if(i.afectaGanancia) ingresosAfectanSum += Number(i.monto||0);
     }
   });
-  const gananciaNeta = ventasSum + ingresosAfectanSum - costosSum - gastosSum;
-  const flujoCaja = ventasSum + ingresosTotalSum - costosSum - gastosSum;
-  return { ventasSum, costosSum, gastosSum, ingresosAfectanSum, ingresosTotalSum, gananciaNeta, flujoCaja };
+  state.abonos.forEach(a=>{
+    const k=toDateKey(a.fecha);
+    if(k>=desde && k<=hasta){
+      if(a.tipo==="perdida") perdidasSum += Number(a.monto||0); else abonosSum += Number(a.monto||0);
+    }
+  });
+  // costosSum = costo de lo VENDIDO (para la ganancia). costosProdSum = lo que se gastó en cocinar (sale de caja).
+  const costosSum = tamalesVendidos * computeCostoPromedio();
+  const gananciaNeta = ventasSum + ingresosAfectanSum - costosSum - gastosSum - perdidasSum;
+  const flujoCaja = (ventasSum - ventasFiadoSum) + ingresosTotalSum + abonosSum - costosProdSum - gastosSum;
+  return { ventasSum, ventasFiadoSum, costosSum, costosProdSum, gastosSum, ingresosAfectanSum, ingresosTotalSum, abonosSum, perdidasSum, tamalesVendidos, gananciaNeta, flujoCaja };
 }
 function computeSaldoCajaHasta(fechaLimite){
   const { flujoCaja } = computeRangeTotals("0001-01-01", fechaLimite);
@@ -2173,10 +2315,12 @@ function previewCorte(){
     <div class="card-title" style="margin-bottom:10px;">${escapeHtml(label)} <span class="corte-type-badge">${tipo}</span></div>
     <div class="corte-grid">
       <div class="corte-stat"><div class="corte-stat-label">Saldo inicial del periodo</div><div class="corte-stat-value">${fmtMoney(saldoInicioPeriodo)}</div></div>
-      <div class="corte-stat"><div class="corte-stat-label">Ventas</div><div class="corte-stat-value pos">${fmtMoney(totals.ventasSum)}</div></div>
+      <div class="corte-stat"><div class="corte-stat-label">Ventas${totals.ventasFiadoSum>0?` (${fmtMoney(totals.ventasFiadoSum)} a fiado)`:""}</div><div class="corte-stat-value pos">${fmtMoney(totals.ventasSum)}</div></div>
       <div class="corte-stat"><div class="corte-stat-label">Ingresos extra</div><div class="corte-stat-value pos">${fmtMoney(totals.ingresosTotalSum)}</div></div>
-      <div class="corte-stat"><div class="corte-stat-label">Costos de producción</div><div class="corte-stat-value neg">${fmtMoney(totals.costosSum)}</div></div>
+      ${totals.abonosSum>0?`<div class="corte-stat"><div class="corte-stat-label">Cobros de fiado</div><div class="corte-stat-value pos">${fmtMoney(totals.abonosSum)}</div></div>`:""}
+      <div class="corte-stat"><div class="corte-stat-label">Costo de lo vendido</div><div class="corte-stat-value neg">${fmtMoney(totals.costosSum)}</div></div>
       <div class="corte-stat"><div class="corte-stat-label">Gastos generales</div><div class="corte-stat-value neg">${fmtMoney(totals.gastosSum)}</div></div>
+      ${totals.perdidasSum>0?`<div class="corte-stat"><div class="corte-stat-label">Fiados perdidos</div><div class="corte-stat-value neg">${fmtMoney(totals.perdidasSum)}</div></div>`:""}
       <div class="corte-stat"><div class="corte-stat-label">Ganancia neta del periodo</div><div class="corte-stat-value ${totals.gananciaNeta>=0?'pos':'neg'}">${fmtMoney(totals.gananciaNeta)}</div></div>
       <div class="corte-stat"><div class="corte-stat-label">Saldo final del periodo</div><div class="corte-stat-value">${fmtMoney(saldoFinPeriodo)}</div></div>
     </div>
@@ -2194,9 +2338,9 @@ async function guardarCorte(desde,hasta,tipo,totals,saldoInicio,saldoFinal){
     id: uid(), fechaInicio:desde, fechaFin:hasta, tipo,
     saldoInicial: saldoInicio,
     totalVentas: totals.ventasSum,
-    totalIngresosExtra: totals.ingresosTotalSum,
+    totalIngresosExtra: totals.ingresosTotalSum + totals.abonosSum,
     totalCostosProduccion: totals.costosSum,
-    totalGastos: totals.gastosSum,
+    totalGastos: totals.gastosSum + totals.perdidasSum,
     gananciaNeta: totals.gananciaNeta,
     saldoFinal: saldoFinal,
     notas: document.getElementById("corteNotas") ? document.getElementById("corteNotas").value : ""
@@ -2249,6 +2393,262 @@ function renderCortes(){
 }
 
 /* ============================================================
+   GANANCIA CLARA (tarjeta principal del panel)
+============================================================ */
+const PERIODOS_CLAROS = {
+  hoy:    {label:"Hoy",          fn:d=>toDateKey(d), key:()=>todayKey()},
+  semana: {label:"Esta semana",  fn:getWeekKey,      key:()=>getWeekKey(new Date())},
+  mes:    {label:"Este mes",     fn:getMonthKey,     key:()=>getMonthKey(new Date())},
+  anio:   {label:"Este año",     fn:getYearKey,      key:()=>getYearKey(new Date())},
+  todo:   {label:"Todo",         fn:()=>"all",       key:()=>"all"},
+};
+function renderGananciaClara(){
+  const wrap = document.getElementById("gananciaClara");
+  if(!wrap) return;
+  const per = PERIODOS_CLAROS[periodoClaro] || PERIODOS_CLAROS.hoy;
+  const r = sumByPeriod(per.fn, per.key());
+  const costoProm = computeCostoPromedio();
+  const gan = r.ganancia;
+  const base = r.ventasSum + r.ingresosExtraSum;
+  const gastoSeg = r.gastosSum + r.perdidasSum;
+  const pctOf = x => base>0 ? Math.max(0, x/base*100) : 0;
+  const barra = base>0 ? (gan>=0
+    ? `<div class="gc-bar"><span style="width:${pctOf(r.costosSum)}%;background:var(--red)"></span><span style="width:${pctOf(gastoSeg)}%;background:var(--orange)"></span><span style="width:${pctOf(gan)}%;background:var(--green)"></span></div>
+       <div class="gc-legend"><span><i style="background:var(--red)"></i>Costo de los tamales</span><span><i style="background:var(--orange)"></i>Gastos</span><span><i style="background:var(--green)"></i>Mi ganancia</span></div>`
+    : `<div class="gc-warn">En este periodo gastaste más de lo que vendiste.</div>`) : "";
+  const fila = (signo, label, hint, monto, cls)=>`
+    <div class="gc-row ${cls}"><div class="gc-label"><span class="gc-sign">${signo}</span>${label}${hint?`<small>${hint}</small>`:""}</div>
+      <div class="gc-amt">${fmtMoney(monto)}</div></div>`;
+  const porCobrar = fiadoListo ? computePorCobrar() : 0;
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="gc-head">
+        <div class="card-title" style="margin:0;">¿Cuánto estoy ganando?</div>
+        <div class="table-tabs" id="gcTabs" style="margin:0;">
+          ${Object.entries(PERIODOS_CLAROS).map(([k,pp])=>`<button class="table-tab${k===periodoClaro?" active":""}" data-per="${k}">${pp.label}</button>`).join("")}
+        </div>
+      </div>
+      <div class="gc-eq">
+        ${fila("", "Lo que vendí", r.ventasFiadoSum>0 ? `${fmtMoney(r.ventasSum-r.ventasFiadoSum)} cobrados + ${fmtMoney(r.ventasFiadoSum)} a fiado` : "", r.ventasSum, "gc-pos")}
+        ${r.ingresosExtraSum>0 ? fila("+","Otros ingresos del negocio","",r.ingresosExtraSum,"gc-pos") : ""}
+        ${fila("−","Costo de los tamales que vendí", r.tamalesVendidos>0 ? `${fmtNum(r.tamalesVendidos)} tamales × ${fmtMoney(costoProm)} c/u` : "", r.costosSum, "gc-neg")}
+        ${fila("−","Gastos del negocio","gasolina, empaque, renta, etc.", r.gastosSum, "gc-neg")}
+        ${r.perdidasSum>0 ? fila("−","Fiados que no me pagaron","",r.perdidasSum,"gc-neg") : ""}
+        <div class="gc-total ${gan>=0?"ok":"bad"}">
+          <div class="gc-label"><span class="gc-sign">=</span>${gan>=0?"Mi ganancia":"Estoy perdiendo"}</div>
+          <div class="gc-amt">${fmtMoney(gan)}</div>
+        </div>
+      </div>
+      ${barra}
+      ${porCobrar>0.004 ? `<div class="gc-fiado">🧾 Tus clientes te deben <b>${fmtMoney(porCobrar)}</b> en total. Esa lana ya cuenta en tu ganancia, pero todavía no está en tu caja. <a href="#" id="gcVerFiados">Ver quién debe</a></div>` : ""}
+    </div>`;
+  wrap.querySelectorAll("#gcTabs .table-tab").forEach(btn=>{
+    btn.addEventListener("click", ()=>{ periodoClaro = btn.dataset.per; renderGananciaClara(); });
+  });
+  const link = document.getElementById("gcVerFiados");
+  if(link) link.addEventListener("click", e=>{ e.preventDefault(); switchView("clientes"); });
+}
+
+/* ============================================================
+   FIADOS (clientes que compran a crédito)
+   Regla: la venta a fiado cuenta como ganancia desde que se hace,
+   pero el dinero entra a caja hasta que el cliente paga (abono).
+============================================================ */
+function esFiado(v){ return v.metodoPago==="Fiado"; }
+function abonosCobrados(){ return state.abonos.filter(a=>a.tipo!=="perdida"); }
+function perdidasFiado(){ return state.abonos.filter(a=>a.tipo==="perdida"); }
+function nombreCliente(id){ const c=state.clientes.find(x=>x.id===id); return c ? c.nombre : "(cliente eliminado)"; }
+function clienteSaldo(id){
+  const fiado = state.ventas.filter(v=>esFiado(v) && v.clienteId===id).reduce((s,v)=>s+(Number(v.total)||0),0);
+  const pagado = state.abonos.filter(a=>a.clienteId===id).reduce((s,a)=>s+(Number(a.monto)||0),0);
+  return Math.round((fiado-pagado)*100)/100;
+}
+function computePorCobrar(){ return state.clientes.reduce((s,c)=>s+Math.max(0,clienteSaldo(c.id)),0); }
+function clienteMovs(id){
+  const list = [];
+  state.ventas.filter(v=>esFiado(v) && v.clienteId===id).forEach(v=> list.push({
+    fecha:v.fecha, detalle: v.items.map(it=>`${it.cantidad}× ${it.producto}`).join(", "), cargo:Number(v.total)||0, abono:0}));
+  state.abonos.filter(a=>a.clienteId===id).forEach(a=> list.push({
+    fecha:a.fecha, cargo:0, abono:Number(a.monto)||0,
+    detalle: a.tipo==="perdida" ? "Marcado como pérdida"+(a.nota?` — ${a.nota}`:"") : `Abono (${a.medioPago})`+(a.nota?` — ${a.nota}`:"")}));
+  list.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  let run = 0;
+  list.forEach(m=>{ run += m.cargo - m.abono; m.saldo = Math.round(run*100)/100; });
+  return list;
+}
+
+function setupFiadoUI(){
+  const sel = document.getElementById("metodoPago");
+  if(!fiadoListo){ [...sel.options].forEach(o=>{ if(o.value==="Fiado") o.remove(); }); }
+  refreshPosClientes();
+  toggleFiadoBox();
+}
+function refreshPosClientes(){
+  const sel = document.getElementById("posCliente");
+  if(!sel) return;
+  const prev = sel.value;
+  const lista = [...state.clientes].sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
+  sel.innerHTML = `<option value="">— Elige un cliente —</option>` +
+    lista.map(c=>{ const sd = clienteSaldo(c.id); return `<option value="${c.id}">${escapeHtml(c.nombre)}${sd>0.004?` (debe ${fmtMoney(sd)})`:""}</option>`; }).join("") +
+    `<option value="__nuevo__">➕ Cliente nuevo…</option>`;
+  if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+}
+function toggleFiadoBox(){
+  const esF = document.getElementById("metodoPago").value==="Fiado";
+  const elegido = document.getElementById("posCliente").value;
+  document.getElementById("fiadoBox").style.display = esF ? "block" : "none";
+  document.getElementById("btnCobrar").textContent = esF ? "Registrar fiado" : "Cobrar";
+  document.getElementById("posClienteNuevoWrap").style.display = (esF && elegido==="__nuevo__") ? "flex" : "none";
+  const hint = document.getElementById("posClienteHint");
+  if(esF && elegido && elegido!=="__nuevo__"){
+    const sd = clienteSaldo(elegido);
+    hint.textContent = sd>0.004 ? `Ya debe ${fmtMoney(sd)}. Con esta venta le quedaría debiendo más.` : "No tiene deuda pendiente.";
+  } else {
+    hint.textContent = esF ? "Cuenta como ganancia, pero el dinero no entra a caja hasta que pague." : "";
+  }
+}
+
+async function registrarAbono(clienteId, monto, medioPago, tipo, nota){
+  const saldo = clienteSaldo(clienteId);
+  if(!(monto>0)){ showToast("Indica cuánto pagó.","err"); return false; }
+  if(monto > saldo + 0.005){ showToast(`Ese monto es mayor a lo que debe (${fmtMoney(saldo)}).`,"err"); return false; }
+  const nuevo = {id:uid(), clienteId, fecha:new Date().toISOString(), monto, medioPago, tipo, nota:nota||""};
+  const {error} = await sb.from("abonos").insert(abonoToDb(nuevo));
+  if(error){ showToast("Error guardando: "+error.message,"err"); return false; }
+  state.abonos = [nuevo, ...state.abonos];
+  renderTopPills(); renderClientes(); refreshPosClientes();
+  return true;
+}
+async function agregarCliente(){
+  const nombre = document.getElementById("cNombre").value.trim();
+  const telefono = document.getElementById("cTelefono").value.trim();
+  if(!nombre){ showToast("Escribe el nombre del cliente.","err"); return; }
+  if(state.clientes.some(c=>c.nombre.toLowerCase()===nombre.toLowerCase())){ showToast("Ya tienes un cliente con ese nombre.","err"); return; }
+  const nuevo = {id:uid(), nombre, telefono, nota:""};
+  const {error} = await sb.from("clientes").insert(clienteToDb(nuevo));
+  if(error){ showToast("Error guardando cliente: "+error.message,"err"); return; }
+  state.clientes = [...state.clientes, nuevo];
+  clienteSel = nuevo.id;
+  renderClientes(); refreshPosClientes();
+  showToast(`Cliente agregado — ${nombre}`);
+}
+function renderClienteDetalle(cli){
+  const saldo = clienteSaldo(cli.id);
+  const debe = saldo>0.004;
+  const movs = clienteMovs(cli.id);
+  return `
+    <div class="card">
+      <div class="cli-head">
+        <div><div class="card-title" style="margin:0;">${escapeHtml(cli.nombre)}</div>
+          <div class="card-hint" style="margin:2px 0 0;">${cli.telefono ? escapeHtml(cli.telefono) : "Sin teléfono"}</div></div>
+        <div class="cli-saldo ${debe?"debe":"ok"}"><small>${debe?"Debe":"Al corriente"}</small>${fmtMoney(Math.max(0,saldo))}</div>
+      </div>
+      ${debe ? `
+      <div class="form-row" style="margin-top:14px;">
+        <label class="field">Monto que paga ($)<input type="number" id="abMonto" min="0" step="0.01" placeholder="0.00" /></label>
+        <label class="field">Cómo pagó<select id="abMedio"><option>Efectivo</option><option>Transferencia</option><option>Otro</option></select></label>
+        <label class="field">Nota (opcional)<input id="abNota" placeholder="ej. Abono de la semana" /></label>
+      </div>
+      <div class="cli-actions">
+        <button class="btn-green" id="btnAbonar">Registrar abono</button>
+        <button class="btn-ghost" id="btnLiquidar">Pagó todo (${fmtMoney(saldo)})</button>
+        <button class="btn-ghost" id="btnPerdida" style="color:var(--red);">No va a pagar (pérdida)</button>
+      </div>` : ""}
+      <div class="table-wrap" style="margin-top:14px;"><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Compró</th><th>Pagó</th><th>Debe</th></tr></thead><tbody>
+        ${movs.length===0 ? `<tr><td colspan="5"><div class="empty"><div class="empty-text">Todavía no tiene movimientos. Cuando le vendas fiado desde la pantalla Venta, aparece aquí.</div></div></td></tr>` :
+          [...movs].reverse().map(m=>`<tr><td>${new Date(m.fecha).toLocaleDateString("es-MX")}</td><td>${escapeHtml(m.detalle)}</td>
+            <td class="amt-out">${m.cargo?fmtMoney(m.cargo):""}</td><td class="amt-in">${m.abono?fmtMoney(m.abono):""}</td><td>${fmtMoney(m.saldo)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="cli-actions" style="margin-top:12px;">
+        <button class="btn-ghost" id="btnCerrarCli">Cerrar</button>
+        ${movs.length===0 ? `<button class="btn-ghost" id="btnEliminarCli" style="color:var(--red);">Eliminar cliente</button>` : ""}
+      </div>
+    </div>`;
+}
+function renderClientes(){
+  const wrap = document.getElementById("clientesContent");
+  if(!wrap) return;
+  if(!fiadoListo){
+    wrap.innerHTML = `<div class="card"><div class="card-title">Falta un paso para activar los fiados</div>
+      <div class="card-hint" style="margin-top:0;">Hay que crear dos tablas nuevas en Supabase. Se hace una sola vez.</div>
+      <ol style="font-size:13px;line-height:1.8;padding-left:20px;margin:0;">
+        <li>Entra a <b>supabase.com</b> → tu proyecto → <b>SQL Editor</b>.</li>
+        <li>Pega todo el contenido del archivo <code>supabase_fiados.sql</code> y dale <b>Run</b>.</li>
+        <li>Recarga esta página.</li>
+      </ol></div>`;
+    return;
+  }
+  const filas = state.clientes.map(c=>({c, saldo:clienteSaldo(c.id)}));
+  filas.sort((a,b)=> ((b.saldo>0.004)-(a.saldo>0.004)) || (b.saldo-a.saldo) || a.c.nombre.localeCompare(b.c.nombre,"es"));
+  const porCobrar = computePorCobrar();
+  const conDeuda = filas.filter(x=>x.saldo>0.004).length;
+  const mesKey = getMonthKey(new Date());
+  const cobradoMes = abonosCobrados().filter(a=>getMonthKey(new Date(a.fecha))===mesKey).reduce((s,a)=>s+a.monto,0);
+  const perdido = perdidasFiado().reduce((s,a)=>s+a.monto,0);
+  const cli = clienteSel ? state.clientes.find(c=>c.id===clienteSel) : null;
+  if(clienteSel && !cli) clienteSel = null;
+
+  wrap.innerHTML = `
+    <div class="mini-row">
+      <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.orangeDark}">🧾</div>
+        <div><div class="mini-value">${fmtMoney(porCobrar)}</div><div class="mini-label">Te deben en total</div></div></div>
+      <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.blueDark}">👥</div>
+        <div><div class="mini-value">${fmtNum(conDeuda)}</div><div class="mini-label">Clientes con deuda</div></div></div>
+      <div class="mini-stat"><div class="mini-icon" style="background:${COLORS.green}">💵</div>
+        <div><div class="mini-value">${fmtMoney(cobradoMes)}</div><div class="mini-label">Cobrado de fiados este mes</div></div></div>
+      ${perdido>0 ? `<div class="mini-stat"><div class="mini-icon" style="background:${COLORS.red}">⚠️</div>
+        <div><div class="mini-value">${fmtMoney(perdido)}</div><div class="mini-label">Fiados perdidos</div></div></div>` : ""}
+    </div>
+    ${cli ? renderClienteDetalle(cli) : ""}
+    <div class="card">
+      <div class="card-title">🤝 Mis clientes</div>
+      <div class="card-hint">Para fiar una venta, ve a <b>Venta</b>, elige método de pago <b>Fiado</b> y escoge al cliente. Aquí registras cuando te pagan.</div>
+      <div class="form-row">
+        <label class="field">Nombre<input id="cNombre" placeholder="ej. Doña Rosa" /></label>
+        <label class="field">Teléfono (opcional)<input id="cTelefono" placeholder="ej. 961 000 0000" /></label>
+        <button class="btn-green" id="btnAddCliente" style="align-self:flex-end;">Agregar cliente</button>
+      </div>
+      ${filas.length===0 ? `<div class="empty"><div class="empty-emoji">🤝</div><div class="empty-text">Aún no tienes clientes. Agrega el primero arriba, o créalo directo al vender fiado.</div></div>` :
+      `<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Debe</th></tr></thead><tbody>
+        ${filas.map(x=>`<tr class="cli-row${x.c.id===clienteSel?" sel":""}" data-id="${x.c.id}">
+          <td><b>${escapeHtml(x.c.nombre)}</b></td><td>${escapeHtml(x.c.telefono)}</td>
+          <td>${x.saldo>0.004 ? `<span class="badge out">${fmtMoney(x.saldo)}</span>` : `<span class="badge in">Al corriente</span>`}</td></tr>`).join("")}
+      </tbody></table></div>`}
+    </div>`;
+
+  const g = id=>document.getElementById(id);
+  g("btnAddCliente").addEventListener("click", agregarCliente);
+  wrap.querySelectorAll(".cli-row").forEach(tr=>{
+    tr.addEventListener("click", ()=>{ clienteSel = tr.dataset.id; renderClientes(); window.scrollTo({top:0, behavior:"smooth"}); });
+  });
+  if(cli){
+    const saldo = clienteSaldo(cli.id);
+    if(g("btnAbonar")) g("btnAbonar").addEventListener("click", async ()=>{
+      const monto = parseFloat(g("abMonto").value);
+      const ok = await registrarAbono(cli.id, monto, g("abMedio").value, "abono", g("abNota").value.trim());
+      if(ok){ const resto = clienteSaldo(cli.id); showToast(resto>0.004 ? `Abono registrado — todavía debe ${fmtMoney(resto)}` : "Abono registrado — ya no debe nada 🎉"); }
+    });
+    if(g("btnLiquidar")) g("btnLiquidar").addEventListener("click", async ()=>{
+      const ok = await registrarAbono(cli.id, saldo, g("abMedio").value, "abono", g("abNota").value.trim() || "Liquidó su deuda");
+      if(ok) showToast(`${cli.nombre} ya no debe nada 🎉`);
+    });
+    if(g("btnPerdida")) g("btnPerdida").addEventListener("click", async ()=>{
+      if(!confirm(`¿Dar por perdidos ${fmtMoney(saldo)} de ${cli.nombre}? Se restan de tu ganancia y no entran a caja.`)) return;
+      const ok = await registrarAbono(cli.id, saldo, "N/A", "perdida", g("abNota").value.trim());
+      if(ok) showToast("Marcado como pérdida.","err");
+    });
+    g("btnCerrarCli").addEventListener("click", ()=>{ clienteSel = null; renderClientes(); });
+    if(g("btnEliminarCli")) g("btnEliminarCli").addEventListener("click", async ()=>{
+      if(!confirm(`¿Eliminar a ${cli.nombre}?`)) return;
+      const {error} = await sb.from("clientes").delete().eq("id", cli.id);
+      if(error){ showToast("Error: "+error.message,"err"); return; }
+      state.clientes = state.clientes.filter(c=>c.id!==cli.id);
+      clienteSel = null; renderClientes(); refreshPosClientes();
+    });
+  }
+}
+
+/* ============================================================
    HISTORIAL
 ============================================================ */
 function inRange(dateStr, desde, hasta){
@@ -2270,7 +2670,7 @@ function renderHistorial(){
       ${filtradas.length===0 ? `<tr><td colspan="5"><div class="empty"><div class="empty-text">Sin ventas en este rango.</div></div></td></tr>` :
         filtradas.map(v=>`<tr><td>${new Date(v.fecha).toLocaleDateString("es-MX")}</td>
           <td>${v.items.map(i=>`${i.cantidad}× ${escapeHtml(i.producto)}`).join(", ")}</td>
-          <td>${v.metodoPago}</td><td>${fmtMoney(v.total)}</td>
+          <td>${esFiado(v) ? `<span class="badge warn">Fiado</span> ${escapeHtml(nombreCliente(v.clienteId))}` : v.metodoPago}</td><td>${fmtMoney(v.total)}</td>
           <td><button class="icon-btn btn-del-venta" data-id="${v.id}">🗑</button></td></tr>`).join("")}
       </tbody></table></div><div class="totals-footer">Total ventas: <strong>${fmtMoney(totalVentas)}</strong></div>`;
     content.querySelectorAll(".btn-del-venta").forEach(btn=>{
@@ -2310,6 +2710,27 @@ function renderHistorial(){
         const {error} = await sb.from("gastos").delete().eq("id", btn.dataset.id);
         if(error){ showToast("Error: "+error.message, "err"); return; }
         state.gastos = state.gastos.filter(g=>g.id!==btn.dataset.id);
+        renderHistorial(); renderTopPills();
+      });
+    });
+  } else if(currentHistTab==="abonos"){
+    const filtrados = state.abonos.filter(a=>inRange(a.fecha, desde, hasta));
+    const totalCobrado = filtrados.filter(a=>a.tipo!=="perdida").reduce((s,a)=>s+a.monto,0);
+    const totalPerdido = filtrados.filter(a=>a.tipo==="perdida").reduce((s,a)=>s+a.monto,0);
+    content.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Pago</th><th>Nota</th><th>Monto</th><th></th></tr></thead><tbody>
+      ${filtrados.length===0 ? `<tr><td colspan="7"><div class="empty"><div class="empty-text">Sin cobros de fiado en este rango.</div></div></td></tr>` :
+        filtrados.map(a=>`<tr><td>${new Date(a.fecha).toLocaleDateString("es-MX")}</td><td>${escapeHtml(nombreCliente(a.clienteId))}</td>
+          <td>${a.tipo==="perdida" ? '<span class="badge out">Pérdida</span>' : '<span class="badge in">Abono</span>'}</td>
+          <td>${a.tipo==="perdida" ? "—" : escapeHtml(a.medioPago)}</td><td>${escapeHtml(a.nota)}</td>
+          <td class="${a.tipo==="perdida"?"amt-out":"amt-in"}">${fmtMoney(a.monto)}</td>
+          <td><button class="icon-btn btn-del-abono" data-id="${a.id}">🗑</button></td></tr>`).join("")}
+      </tbody></table></div><div class="totals-footer">Cobrado: <strong>${fmtMoney(totalCobrado)}</strong>${totalPerdido>0?` · Perdido: <strong>${fmtMoney(totalPerdido)}</strong>`:""}</div>`;
+    content.querySelectorAll(".btn-del-abono").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if(!confirm("¿Borrar este registro? La deuda del cliente se recalcula sola.")) return;
+        const {error} = await sb.from("abonos").delete().eq("id", btn.dataset.id);
+        if(error){ showToast("Error: "+error.message, "err"); return; }
+        state.abonos = state.abonos.filter(a=>a.id!==btn.dataset.id);
         renderHistorial(); renderTopPills();
       });
     });
@@ -2360,6 +2781,10 @@ function renderConfig(){
         sb.from("movimientos_insumos").delete().eq("user_id", currentUser.id),
         sb.from("cortes").delete().eq("user_id", currentUser.id),
       ]);
+      if(fiadoListo){
+        await sb.from("abonos").delete().eq("user_id", currentUser.id);
+        await sb.from("clientes").delete().eq("user_id", currentUser.id);
+      }
       showToast("Se borraron todos los movimientos.","err");
       location.reload();
     });
@@ -2475,6 +2900,8 @@ function guardarRespaldo(){
     cortes: state.cortes,
     insumos: state.insumos,
     movimientosInsumos: state.movimientosInsumos,
+    clientes: state.clientes,
+    abonos: state.abonos,
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
@@ -2505,6 +2932,14 @@ async function restaurarRespaldo(file){
     sb.from("cortes").delete().eq("user_id", currentUser.id),
     sb.from("insumos").delete().eq("user_id", currentUser.id),
   ]);
+  if(fiadoListo){
+    await sb.from("abonos").delete().eq("user_id", currentUser.id);
+    await sb.from("clientes").delete().eq("user_id", currentUser.id);
+    if(data.clientes?.length){
+      const {error: errCl} = await sb.from("clientes").insert(data.clientes.map(clienteToDb));
+      if(errCl) showToast("Advertencia: hubo un problema restaurando clientes: "+errCl.message, "err");
+    }
+  }
 
   const inserciones = [];
   if(data.insumos?.length) inserciones.push(sb.from("insumos").insert(data.insumos.map(insumoToDb)));
@@ -2514,6 +2949,10 @@ async function restaurarRespaldo(file){
   if(data.ingresosExtra?.length) inserciones.push(sb.from("ingresos_extra").insert(data.ingresosExtra.map(ingresoToDb)));
   if(data.cortes?.length) inserciones.push(sb.from("cortes").insert(data.cortes.map(corteToDb)));
   await Promise.all(inserciones);
+  if(fiadoListo && data.abonos?.length){
+    const {error: errAb} = await sb.from("abonos").insert(data.abonos.map(abonoToDb));
+    if(errAb) showToast("Advertencia: hubo un problema restaurando cobros de fiado: "+errAb.message, "err");
+  }
   if(data.movimientosInsumos?.length){
     const {error: errMov} = await sb.from("movimientos_insumos").insert(data.movimientosInsumos.map(movInsumoToDb));
     if(errMov) showToast("Advertencia: hubo un problema restaurando movimientos de bodega: "+errMov.message, "err");
@@ -2534,7 +2973,7 @@ function exportarExcel(){
   const ventasFilas = state.ventas.map(v=>({
     Fecha: new Date(v.fecha).toLocaleString("es-MX"),
     Productos: v.items.map(it=>`${it.cantidad}x ${it.producto}`).join(", "),
-    Total: v.total, "Método de pago": v.metodoPago
+    Total: v.total, "Método de pago": v.metodoPago, Cliente: v.clienteId ? nombreCliente(v.clienteId) : ""
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ventasFilas.length?ventasFilas:[{Fecha:"",Productos:"",Total:"","Método de pago":""}]), "Ventas");
 
@@ -2565,6 +3004,12 @@ function exportarExcel(){
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movFilas.length?movFilas:[{Fecha:"",Insumo:"",Tipo:"",Cantidad:"","Costo unitario":"",Nota:""}]), "Movimientos bodega");
 
+  if(fiadoListo){
+    const cliFilas = state.clientes.map(c=>({Cliente:c.nombre, Teléfono:c.telefono, "Debe ahora":clienteSaldo(c.id)}));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cliFilas.length?cliFilas:[{Cliente:"",Teléfono:"","Debe ahora":""}]), "Clientes (fiados)");
+    const abFilas = state.abonos.map(a=>({Fecha:new Date(a.fecha).toLocaleString("es-MX"), Cliente:nombreCliente(a.clienteId), Tipo:a.tipo==="perdida"?"Pérdida":"Abono", "Método de pago":a.tipo==="perdida"?"":a.medioPago, Monto:a.monto, Nota:a.nota}));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(abFilas.length?abFilas:[{Fecha:"",Cliente:"",Tipo:"","Método de pago":"",Monto:"",Nota:""}]), "Cobros de fiado");
+  }
   XLSX.writeFile(wb, `pictes-claudita-datos-${todayKey()}.xlsx`);
   showToast("Excel exportado.");
 }
@@ -2600,6 +3045,8 @@ function bindStaticEvents(){
   });
 
   document.getElementById("btnCobrar").addEventListener("click", cobrar);
+  document.getElementById("metodoPago").addEventListener("change", toggleFiadoBox);
+  document.getElementById("posCliente").addEventListener("change", toggleFiadoBox);
   document.getElementById("btnGuardarGasto").addEventListener("click", guardarGasto);
   document.getElementById("btnGuardarIngreso").addEventListener("click", guardarIngresoExtra);
   document.getElementById("btnCalcularAjuste").addEventListener("click", calcularAjuste);
